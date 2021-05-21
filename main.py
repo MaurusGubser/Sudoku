@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -15,6 +16,11 @@ class Sudoku:
         self.field_solution[x, y] = number
         return None
 
+    def read_field_from_csv(self, path_to_csv):
+        df = pd.read_csv(path_to_csv)
+        self.field_solution = df.to_numpy()
+        return None
+
     def show_field(self):
         print(self.field_solution)
         return None
@@ -27,13 +33,13 @@ class Sudoku:
         changed = False
         temp = self.field_possible
         remove_numbers = set([])
-        for i in range(box_x*3, box_x*3 + 3):
-            for j in range(box_y*3, box_y*3 + 3):
+        for i in range(box_x * 3, box_x * 3 + 3):
+            for j in range(box_y * 3, box_y * 3 + 3):
                 remove_numbers.add(self.field_solution[i, j])
         remove_numbers.remove(0)
         for num in remove_numbers:
-            for i in range(box_x*3, box_x*3 + 3):
-                for j in range(box_y*3, box_y*3+ 3):
+            for i in range(box_x * 3, box_x * 3 + 3):
+                for j in range(box_y * 3, box_y * 3 + 3):
                     self.field_possible[i, j, int(num)] = 0
         if np.any(abs(temp - self.field_possible)) > 0:
             changed = True
@@ -67,6 +73,26 @@ class Sudoku:
             changed = True
         return changed
 
+    def check_for_error(self):
+        for i in range(0, 9):
+            row = self.field_solution[i, :]
+            to_check = row[row > 0]
+            if len(set(to_check)) < len(to_check):
+                print('Found error in row {}'.format(i))
+                return 1
+        for j in range(0, 9):
+            column = self.field_solution[:, j]
+            to_check = column[column > 0]
+            if len(set(to_check)) < len(to_check):
+                print('Found error in row {}'.format(j))
+                return 1
+        for box_x, box_y in zip(range(0, 3), range(0, 3)):
+            box = self.field_solution[box_x * 3:box_x * 3 + 3, box_y * 3:box_y * 3 + 3]
+            to_check = box[box > 0].flatten()
+            if len(set(to_check)) < len(to_check):
+                print('Found error in box ({}, {})'.format(box_x, box_y))
+        return 0
+
     def check_for_solved(self):
         if np.min(self.field_solution) == 0:
             return False
@@ -78,12 +104,14 @@ class Sudoku:
 if __name__ == '__main__':
     sudoku_exple = Sudoku()
     sudoku_exple.show_field()
+    sudoku_exple.check_for_error()
     sudoku_exple.set_number(8, 8, 1)
+    sudoku_exple.set_number(8, 7, 2)
+    sudoku_exple.set_number(7, 7, 5)
     sudoku_exple.show_field()
-    sudoku_exple.show_possibilities()
     sudoku_exple.update_small_box(2, 2)
     sudoku_exple.update_row(8)
     sudoku_exple.update_col(8)
     print('Update')
     sudoku_exple.show_possibilities()
-
+    sudoku_exple.check_for_error()
