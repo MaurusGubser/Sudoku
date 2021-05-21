@@ -1,10 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+import copy
 
 
 class Sudoku:
@@ -12,12 +9,12 @@ class Sudoku:
         self.field_solution = np.zeros((9, 9), dtype=int)
         self.field_possible = np.reshape([np.arange(1, 10, dtype=int) for i in range(0, 81)], (9, 9, 9))
 
-    def set_number(self, x, y, number):
-        self.field_solution[x, y] = number
+    def set_number(self, i, j, number):
+        self.field_solution[i, j] = number
         return None
 
     def read_field_from_csv(self, path_to_csv):
-        df = pd.read_csv(path_to_csv)
+        df = pd.read_csv(path_to_csv, header=None)
         self.field_solution = df.to_numpy()
         return None
 
@@ -29,25 +26,25 @@ class Sudoku:
         print(self.field_possible)
         return None
 
-    def update_small_box(self, box_x, box_y):
+    def update_small_box_possible(self, box_i, box_j):
         changed = False
-        temp = self.field_possible
+        temp = copy.copy(self.field_possible)
         remove_numbers = set([])
-        for i in range(box_x * 3, box_x * 3 + 3):
-            for j in range(box_y * 3, box_y * 3 + 3):
+        for i in range(box_i * 3, box_i * 3 + 3):
+            for j in range(box_j * 3, box_j * 3 + 3):
                 remove_numbers.add(self.field_solution[i, j])
         remove_numbers.remove(0)
         for num in remove_numbers:
-            for i in range(box_x * 3, box_x * 3 + 3):
-                for j in range(box_y * 3, box_y * 3 + 3):
+            for i in range(box_i * 3, box_i * 3 + 3):
+                for j in range(box_j * 3, box_j * 3 + 3):
                     self.field_possible[i, j, int(num)] = 0
         if np.any(abs(temp - self.field_possible)) > 0:
             changed = True
         return changed
 
-    def update_row(self, row_idx):
+    def update_row_possible(self, row_idx):
         changed = False
-        temp = self.field_possible
+        temp = copy.copy(self.field_possible)
         remove_numbers = set([])
         for j in range(0, 9):
             remove_numbers.add(self.field_solution[row_idx, j])
@@ -59,9 +56,9 @@ class Sudoku:
             changed = True
         return changed
 
-    def update_col(self, col_idx):
+    def update_col_possible(self, col_idx):
         changed = False
-        temp = self.field_possible
+        temp = copy.copy(self.field_possible)
         remove_numbers = set([])
         for i in range(0, 9):
             remove_numbers.add(self.field_solution[i, col_idx])
@@ -79,19 +76,101 @@ class Sudoku:
             to_check = row[row > 0]
             if len(set(to_check)) < len(to_check):
                 print('Found error in row {}'.format(i))
-                return 1
+                return True
         for j in range(0, 9):
             column = self.field_solution[:, j]
             to_check = column[column > 0]
             if len(set(to_check)) < len(to_check):
                 print('Found error in row {}'.format(j))
-                return 1
-        for box_x, box_y in zip(range(0, 3), range(0, 3)):
-            box = self.field_solution[box_x * 3:box_x * 3 + 3, box_y * 3:box_y * 3 + 3]
-            to_check = box[box > 0].flatten()
-            if len(set(to_check)) < len(to_check):
-                print('Found error in box ({}, {})'.format(box_x, box_y))
-        return 0
+                return True
+        for box_i in range(0, 3):
+            for box_j in range(0, 3):
+                box = self.field_solution[box_i * 3:box_i * 3 + 3, box_j * 3:box_j * 3 + 3]
+                to_check = box[box > 0].flatten()
+                if len(set(to_check)) < len(to_check):
+                    print('Found error in box ({}, {})'.format(box_i, box_j))
+        return False
+
+    def update_field_possible(self):
+        changed = False
+        temp = copy.copy(self.field_possible)
+        for i in range(0, 9):
+            change = True
+            while change:
+                change = self.update_row_possible(i)
+        for j in range(0, 9):
+            change = True
+            while change:
+                change = self.update_col_possible(j)
+        for box_i in range(0, 3):
+            for box_j in range(0, 3):
+                change = True
+                while change:
+                    change = self.update_small_box_possible(box_i, box_j)
+        if np.any(abs(temp - self.field_possible)) > 0:
+            changed = True
+        return changed
+
+    def update_field_single(self):
+        changed = False
+        possible_num = set([])
+        for i in range(0, 9):
+            for j in range(0, 9):
+                possible_num.union(set(self.field_possible[i, j, :])).remove(0)
+                if len(possible_num) == 1 and self.field_solution[i, j] == 0:
+                    self.field_solution[i, j] = set.pop()
+                    changed = True
+        return changed
+
+    def update_small_box_solution(self, box_i, box_j):
+        changed = False
+        for num in range(1, 10):
+            candidates_idxs = np.argwhere(
+                self.field_possible[box_i * 3:box_i * 3 + 3, box_j * 3:box_j * 3 + 3, num - 1] == num)
+            if candidates_idxs.size == 1:
+                self.field_possible[box_i * 3:box_i * 3 + 3, box_j * 3:box_j * 3 + 3, num - 1] = 0
+                self.field_solution[box_i + candidates_idxs[0], box_j + candidates_idxs[1]] = num
+                changed = True
+        return changed
+
+    def update_row_solution(self, row_idx):
+        changed = False
+        for num in range(1, 10):
+            candidates_idxs = np.argwhere(self.field_possible[row_idx, :, num - 1] == num).flatten()
+            if candidates_idxs.size == 1:
+                self.field_possible[row_idx, :, num - 1] = 0
+                self.field_solution[row_idx, candidates_idxs[0]] = num
+                changed = True
+        return changed
+
+    def update_column_solution(self, column_idx):
+        changed = False
+        for num in range(1, 10):
+            candidates_idxs = np.argwhere(self.field_possible[:, column_idx, num - 1] == num).flatten()
+            if candidates_idxs.size == 1:
+                self.field_possible[:, column_idx, num - 1] = 0
+                self.field_solution[candidates_idxs[0], column_idx] = num
+                changed = True
+        return changed
+
+    def update_field_solution(self):
+        changed = self.update_field_single()
+        for i in range(0, 9):
+            change = True
+            while change:
+                change = self.update_row_solution(i)
+        for j in range(0, 9):
+            change = True
+            while change:
+                change = self.update_column_solution(j)
+        for box_i in range(0, 3):
+            for box_j in range(0, 3):
+                change = True
+                while change:
+                    change = self.update_small_box_solution(box_i, box_j)
+        if np.any(abs(temp - self.field_solution)) > 0:
+            changed = True
+        return changed
 
     def check_for_solved(self):
         if np.min(self.field_solution) == 0:
@@ -102,16 +181,11 @@ class Sudoku:
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    sudoku_exple = Sudoku()
-    sudoku_exple.show_field()
-    sudoku_exple.check_for_error()
-    sudoku_exple.set_number(8, 8, 1)
-    sudoku_exple.set_number(8, 7, 2)
-    sudoku_exple.set_number(7, 7, 5)
-    sudoku_exple.show_field()
-    sudoku_exple.update_small_box(2, 2)
-    sudoku_exple.update_row(8)
-    sudoku_exple.update_col(8)
-    print('Update')
-    sudoku_exple.show_possibilities()
-    sudoku_exple.check_for_error()
+    sudoku = Sudoku()
+    sudoku.read_field_from_csv('Sudoku_Examples/Example1')
+    sudoku.show_field()
+    changed_possible = sudoku.update_field_possible()
+    print(changed_possible)
+    changed_solution = sudoku.update_field_solution()
+    print(changed_solution)
+    sudoku.show_field()
