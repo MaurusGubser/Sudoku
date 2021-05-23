@@ -26,6 +26,15 @@ class Sudoku:
         print(self.field_possible)
         return None
 
+    def update_single_possible(self):
+        changed = False
+        for i in range(0, 9):
+            for j in range(0, 9):
+                if self.field_solution[i, j] > 0:
+                    self.field_possible[i, j, :] = 0  # np.zeros(9)
+                    changed = True
+        return changed
+
     def update_small_box_possible(self, box_i, box_j):
         changed = False
         temp = copy.copy(self.field_possible)
@@ -33,11 +42,11 @@ class Sudoku:
         for i in range(box_i * 3, box_i * 3 + 3):
             for j in range(box_j * 3, box_j * 3 + 3):
                 remove_numbers.add(self.field_solution[i, j])
-        remove_numbers.remove(0)
+        remove_numbers.difference([0])
         for num in remove_numbers:
             for i in range(box_i * 3, box_i * 3 + 3):
                 for j in range(box_j * 3, box_j * 3 + 3):
-                    self.field_possible[i, j, int(num)] = 0
+                    self.field_possible[i, j, int(num) - 1] = 0
         if np.any(abs(temp - self.field_possible)) > 0:
             changed = True
         return changed
@@ -48,10 +57,10 @@ class Sudoku:
         remove_numbers = set([])
         for j in range(0, 9):
             remove_numbers.add(self.field_solution[row_idx, j])
-        remove_numbers.remove(0)
+        remove_numbers.difference([0])
         for num in remove_numbers:
             for j in range(0, 9):
-                self.field_possible[row_idx, j, int(num)] = 0
+                self.field_possible[row_idx, j, int(num) - 1] = 0
         if np.any(abs(temp - self.field_possible)) > 0:
             changed = True
         return changed
@@ -62,38 +71,17 @@ class Sudoku:
         remove_numbers = set([])
         for i in range(0, 9):
             remove_numbers.add(self.field_solution[i, col_idx])
-        remove_numbers.remove(0)
+        remove_numbers.difference([0])
         for num in remove_numbers:
             for i in range(0, 9):
-                self.field_possible[col_idx, i, int(num)] = 0
+                self.field_possible[i, col_idx, int(num) - 1] = 0
         if np.any(abs(temp - self.field_possible)) > 0:
             changed = True
         return changed
 
-    def check_for_error(self):
-        for i in range(0, 9):
-            row = self.field_solution[i, :]
-            to_check = row[row > 0]
-            if len(set(to_check)) < len(to_check):
-                print('Found error in row {}'.format(i))
-                return True
-        for j in range(0, 9):
-            column = self.field_solution[:, j]
-            to_check = column[column > 0]
-            if len(set(to_check)) < len(to_check):
-                print('Found error in row {}'.format(j))
-                return True
-        for box_i in range(0, 3):
-            for box_j in range(0, 3):
-                box = self.field_solution[box_i * 3:box_i * 3 + 3, box_j * 3:box_j * 3 + 3]
-                to_check = box[box > 0].flatten()
-                if len(set(to_check)) < len(to_check):
-                    print('Found error in box ({}, {})'.format(box_i, box_j))
-        return False
-
     def update_field_possible(self):
-        changed = False
         temp = copy.copy(self.field_possible)
+        changed = self.update_single_possible()
         for i in range(0, 9):
             change = True
             while change:
@@ -111,12 +99,12 @@ class Sudoku:
             changed = True
         return changed
 
-    def update_field_single(self):
+    def update_single_solution(self):
         changed = False
         possible_num = set([])
         for i in range(0, 9):
             for j in range(0, 9):
-                possible_num.union(set(self.field_possible[i, j, :])).remove(0)
+                possible_num.union(set(self.field_possible[i, j, :])).difference([0])
                 if len(possible_num) == 1 and self.field_solution[i, j] == 0:
                     self.field_solution[i, j] = set.pop()
                     changed = True
@@ -154,7 +142,8 @@ class Sudoku:
         return changed
 
     def update_field_solution(self):
-        changed = self.update_field_single()
+        temp = copy.copy(self.field_solution)
+        changed = self.update_single_solution()
         for i in range(0, 9):
             change = True
             while change:
@@ -178,14 +167,75 @@ class Sudoku:
         else:
             return True
 
+    def check_for_error(self):
+        for i in range(0, 9):
+            row = self.field_solution[i, :]
+            to_check = row[row > 0]
+            if len(set(to_check)) < len(to_check):
+                print('Found error in row {}'.format(i))
+                return True
+        for j in range(0, 9):
+            column = self.field_solution[:, j]
+            to_check = column[column > 0]
+            if len(set(to_check)) < len(to_check):
+                print('Found error in row {}'.format(j))
+                return True
+        for box_i in range(0, 3):
+            for box_j in range(0, 3):
+                box = self.field_solution[box_i * 3:box_i * 3 + 3, box_j * 3:box_j * 3 + 3]
+                to_check = box[box > 0].flatten()
+                if len(set(to_check)) < len(to_check):
+                    print('Found error in box ({}, {})'.format(box_i, box_j))
+        return False
+
+    def solve_sudoku(self):
+        print('Searching for a solution of:')
+        self.show_field()
+        changed_possible = True
+        changed_solution = True
+        iter_nb = 0
+        while changed_possible or changed_solution:
+            changed_possible = self.update_field_possible()
+            changed_solution = self.update_field_solution()
+            if iter_nb % 100 == 0:
+                print('Iteration {}'.format(iter_nb))
+                self.show_field()
+                iter_nb += 1
+        if self.check_for_solved():
+            if self.check_for_error():
+                return False
+            else:
+                print('Sudoku solved:')
+                self.show_field()
+                return True
+        else:
+            print('Solver stuck at:')
+            self.show_possibilities()
+            self.show_field()
+            return False
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     sudoku = Sudoku()
+    """
+    sudoku.set_number(0, 0, 1)
+    sudoku.set_number(0, 1, 3)
+    sudoku.set_number(1, 0, 5)
+    sudoku.show_field()
+    print(sudoku.field_possible[:, :, 0])
+    print(sudoku.field_possible[0, 0, :])
+    sudoku.update_field_possible()
+    print(sudoku.field_possible[:, :, 0])
+    print(sudoku.field_possible[0, 0, :])
+    """
     sudoku.read_field_from_csv('Sudoku_Examples/Example1')
+    sudoku.solve_sudoku()
+    """
     sudoku.show_field()
     changed_possible = sudoku.update_field_possible()
     print(changed_possible)
     changed_solution = sudoku.update_field_solution()
     print(changed_solution)
     sudoku.show_field()
+    """
