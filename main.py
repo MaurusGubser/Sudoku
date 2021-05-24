@@ -23,7 +23,9 @@ class Sudoku:
         return None
 
     def show_possibilities(self):
-        print(self.field_possible)
+        for num in range(1, 10):
+            print('Possibilities for number {}'.format(num))
+            print(self.field_possible[:, :, num - 1])
         return None
 
     def update_single_possible(self):
@@ -131,11 +133,11 @@ class Sudoku:
         for num in range(1, 10):
             candidates_idxs = np.argwhere(
                 self.field_possible[box_i * 3:box_i * 3 + 3, box_j * 3:box_j * 3 + 3, num - 1] == num)
-            if candidates_idxs.size == 1:
-                self.field_solution[box_i + candidates_idxs[0], box_j + candidates_idxs[1]] = num
+            if candidates_idxs.size == 2:
+                self.field_solution[box_i * 3 + candidates_idxs[0, 0], box_j * 3 + candidates_idxs[0, 1]] = num
                 self.field_possible[box_i * 3:box_i * 3 + 3, box_j * 3:box_j * 3 + 3, num - 1] = 0
-                self.field_possible[box_i + candidates_idxs[0], :] = 0
-                self.field_possible[:, box_j + candidates_idxs[1]] = 0
+                self.field_possible[box_i * 3 + candidates_idxs[0, 0], :, num - 1] = 0
+                self.field_possible[:, box_j * 3 + candidates_idxs[0, 1], num - 1] = 0
                 changed = True
         return changed
 
@@ -225,7 +227,7 @@ class Sudoku:
             changed_solution = self.update_field_solution()
             if self.check_for_error():
                 self.show_field()
-                print('Found error in iteraion {}'.format(iter_nb))
+                print('Found error after iteration {}'.format(iter_nb))
                 return False
             iter_nb += 1
         if self.check_for_solved():
@@ -233,7 +235,7 @@ class Sudoku:
             self.show_field()
             return True
         else:
-            print('Solver stuck at:')
+            print('Solver stuck after {} iterations:'.format(iter_nb))
             self.show_possibilities()
             self.show_field()
             return False
@@ -242,6 +244,5 @@ class Sudoku:
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     sudoku = Sudoku()
-    sudoku.read_field_from_csv('Sudoku_Examples/Example1')
+    sudoku.read_field_from_csv('Sudoku_Examples/Example4_Intermediate')
     sudoku.solve_sudoku()
-
