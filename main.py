@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 
-from Sudoku import Sudoku
-from ReadSudoku import SudokuReader
+from SudokuSolver import Sudoku
+from SudokuReader import SudokuReader
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
