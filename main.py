@@ -19,6 +19,7 @@ if __name__ == '__main__':
     # reader.hough_line_detection(rho=1.0, theta=np.pi/30, thres=120)
     # reader.show_hough_line()
     # reader.watershed_detection()
+    # reader.find_contours()
     reader.label_connected_component()
     # reader.harris_corner(block_size=2, ksize=3, k=0.15)
     """

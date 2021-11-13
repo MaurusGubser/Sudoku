@@ -18,6 +18,7 @@ class SudokuReader():
         self.lines = np.empty((1, 1), dtype=np.uint8)
         self.height = 0     # row
         self.width = 0  # column
+        self.number_candidates = []
 
     def read_image_from_source(self, path_src):
         self.image = cv.imread(path_src)
@@ -127,42 +128,45 @@ class SudokuReader():
         plt.show()
         return None
 
+    def find_contours(self):
+        #self.otsu_thresholding()
+        self.canny_edge_detection()
+        contours, hierarchy = cv.findContours(self.edges, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        img = self.image.copy()
+        cv.drawContours(img, contours, 2, (0, 255, 0), 3)
+        plt.imshow(img)
+        plt.show()
+        return None
+
     def label_connected_component(self):
         self.otsu_thresholding()
         self.close_image()
         thresh = self.image_binary
         numLabels, labels, stats, centroids = cv.connectedComponentsWithStats(thresh, connectivity=8, ltype=cv.CV_32S)
-        """
+
         fig, axs = plt.subplots(nrows=1, ncols=2)
         axs[0].imshow(thresh)
         axs[1].imshow(labels)
         plt.show()
-        """
+
+        output = self.image.copy()
         for i in range(0, numLabels):
-            if i == 0:
-                continue
+            if self.is_number_candidate(stats[i]):
+                self.number_candidates.append(stats[i])
             else:
-                text = "examining component {}/{}".format(i + 1, numLabels)
+                continue
 
-                x = stats[i, cv.CC_STAT_LEFT]
-                y = stats[i, cv.CC_STAT_TOP]
-                w = stats[i, cv.CC_STAT_WIDTH]
-                h = stats[i, cv.CC_STAT_HEIGHT]
-                area = stats[i, cv.CC_STAT_AREA]
+            x = stats[i, cv.CC_STAT_LEFT]
+            y = stats[i, cv.CC_STAT_TOP]
+            w = stats[i, cv.CC_STAT_WIDTH]
+            h = stats[i, cv.CC_STAT_HEIGHT]
+            cand = self.crop_candidate(stats[i])
+            plt.imshow(cand)
+            plt.show()
+            cv.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 3)
 
-                if self.is_number_candidate(stats[i]):
-                    print("[INFO] keeping component {}".format(text))
-                else:
-                    print("[INFO] refuse component {}".format(text))
-                (cX, cY) = centroids[i]
-                output = self.image.copy()
-                cv.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 3)
-                cv.circle(output, (int(cX), int(cY)), 4, (0, 0, 255), -1)
-                componentMask = (labels == i).astype("uint8") * 255
-                fig, axs = plt.subplots(nrows=1, ncols=2)
-                axs[0].imshow(output)
-                axs[1].imshow(componentMask)
-                plt.show()
+        plt.imshow(output)
+        plt.show()
         return None
 
     def harris_corner(self, block_size=2, ksize=3, k=0.15):
@@ -174,14 +178,23 @@ class SudokuReader():
 
     def is_number_candidate(self, stats):
         total_area = self.height * self.width
+        w = stats[cv.CC_STAT_WIDTH]
+        h = stats[cv.CC_STAT_HEIGHT]
+        area_rect = w*h
+        if h/w < 0.3333 or 3.0 < h/w:
+            return False
+        elif area_rect / total_area < 0.0004 or 0.0025 < area_rect / total_area:
+            return False
+        else:
+            return True
+
+    def crop_candidate(self, stats):
         x = stats[cv.CC_STAT_LEFT]
         y = stats[cv.CC_STAT_TOP]
         w = stats[cv.CC_STAT_WIDTH]
         h = stats[cv.CC_STAT_HEIGHT]
-        area_candidate = stats[cv.CC_STAT_AREA]
-        if h/w < 0.5 or 2.0 < h/w:
-            return False
-        elif area_candidate / total_area < 0.0001 or 0.003 < area_candidate / total_area:
-            return False
-        else:
-            return True
+
+        img_cand = self.image_gray[y:y+h, x:x+w]
+        img_cand = cv.resize(img_cand, dsize=(28, 28))
+
+        return img_cand
