@@ -16,7 +16,7 @@ class SudokuReader():
         self.edges = np.empty((1, 1), dtype=np.uint8)
         self.image_binary = np.empty((1, 1), dtype=np.uint8)
         self.lines = np.empty((1, 1), dtype=np.uint8)
-        self.height = 0     # row
+        self.height = 0  # row
         self.width = 0  # column
         self.number_candidates = []
 
@@ -129,11 +129,13 @@ class SudokuReader():
         return None
 
     def find_contours(self):
-        #self.otsu_thresholding()
+        # self.otsu_thresholding()
         self.canny_edge_detection()
         contours, hierarchy = cv.findContours(self.edges, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         img = self.image.copy()
-        cv.drawContours(img, contours, 2, (0, 255, 0), 3)
+        for i in range(0, len(contours)):
+            color = (np.random.randint(0, 256), np.random.randint(0, 256), np.random.randint(0, 256))
+            cv.drawContours(img, contours, i, color, 2)
         plt.imshow(img)
         plt.show()
         return None
@@ -151,7 +153,7 @@ class SudokuReader():
 
         output = self.image.copy()
         for i in range(0, numLabels):
-            if self.is_number_candidate(stats[i]):
+            if self.is_candidate_size_realistic(stats[i]):
                 self.number_candidates.append(stats[i])
             else:
                 continue
@@ -162,7 +164,7 @@ class SudokuReader():
             h = stats[i, cv.CC_STAT_HEIGHT]
             cand = self.crop_candidate(stats[i])
             plt.imshow(cand)
-            plt.show()
+            #plt.show()
             cv.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 3)
 
         plt.imshow(output)
@@ -176,14 +178,17 @@ class SudokuReader():
         self.image[dst > 0.01 * dst.max()] = [0, 0, 255]
         return None
 
-    def is_number_candidate(self, stats):
+    def is_candidate_size_realistic(self, stats):
+        # assuming A_tot <= (3/2 * s)**2
+        # assuming 1/3 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
         total_area = self.height * self.width
         w = stats[cv.CC_STAT_WIDTH]
         h = stats[cv.CC_STAT_HEIGHT]
-        area_rect = w*h
-        if h/w < 0.3333 or 3.0 < h/w:
+        area_cand = w * h
+        if h / w < 1 / 3.0 or 3.0 < h / w:
             return False
-        elif area_rect / total_area < 0.0004 or 0.0025 < area_rect / total_area:
+        # elif area_cand / total_area < 0.0004 or 0.0025 < area_cand / total_area:
+        elif area_cand / total_area < 0.000457 or 0.0123 < area_cand / total_area:
             return False
         else:
             return True
@@ -193,8 +198,10 @@ class SudokuReader():
         y = stats[cv.CC_STAT_TOP]
         w = stats[cv.CC_STAT_WIDTH]
         h = stats[cv.CC_STAT_HEIGHT]
+        delta_h = h // 5
+        delta_w = w // 5
 
-        img_cand = self.image_gray[y:y+h, x:x+w]
+        img_cand = self.image_gray[y - delta_h:y + delta_h + h, x - delta_w:x + delta_w + w]
         img_cand = cv.resize(img_cand, dsize=(28, 28))
 
         return img_cand

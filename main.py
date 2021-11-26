@@ -7,7 +7,7 @@ from SudokuReader import SudokuReader
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     reader = SudokuReader()
-    path = 'Sudoku_Images/Sudoku2.png'
+    path = 'Sudoku_Images/Sudoku1.jpeg'
     reader.read_image_from_source(path)
 
     # reader.compute_binary_image(thres=2.3, block_size=5)
