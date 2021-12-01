@@ -96,8 +96,9 @@ class SudokuReader():
         self.image_binary = cv.morphologyEx(self.image_binary, cv.MORPH_CLOSE, kernel)
         return None
 
-    def canny_edge_detection(self, thres_low=100, thres_upper=200):
-        self.edges = cv.Canny(self.image_gray, thres_low, thres_upper)
+    def canny_edge_detection(self, kernel_size=5, thres_low=100, thres_upper=200):
+        blur = cv.GaussianBlur(self.image_gray, ksize=(kernel_size, kernel_size), sigmaX=1.0)
+        self.edges = cv.Canny(blur, thres_low, thres_upper)
         return None
 
     def hough_line_detection(self, rho=1, theta=np.pi / 180, thres=200):
@@ -131,13 +132,18 @@ class SudokuReader():
     def find_contours(self):
         # self.otsu_thresholding()
         self.canny_edge_detection()
+        area_tot = self.height * self.width
         contours, hierarchy = cv.findContours(self.edges, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         img = self.image.copy()
         for i in range(0, len(contours)):
+            if cv.contourArea(contours[i]) < 0.6 * area_tot:
+                continue
             color = (np.random.randint(0, 256), np.random.randint(0, 256), np.random.randint(0, 256))
+            # color = (0, 0, 255)
             cv.drawContours(img, contours, i, color, 2)
-        plt.imshow(img)
-        plt.show()
+            print('Index={}, Area={}'.format(i, cv.contourArea(contours[i])))
+            plt.imshow(img)
+            plt.show()
         return None
 
     def label_connected_component(self):
