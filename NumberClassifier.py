@@ -7,36 +7,6 @@ from sklearn.metrics import classification_report, confusion_matrix, ConfusionMa
 import matplotlib.pyplot as plt
 
 
-class NumberClassifier():
-
-    def __init__(self, input_shape, nb_filters, kernel_size, pool_size):
-        self.input_shape = input_shape
-        self.nb_filters = nb_filters
-        self.kernel_size = kernel_size
-        self.padding_size = pool_size
-
-        self.conv1 = Conv2D(filters=2 * nb_filters, kernel_size=kernel_size, padding='valid', activation=relu)
-        self.pool1 = MaxPool2D(pool_size=pool_size)
-        self.conv2 = Conv2D(filters=4 * nb_filters, kernel_size=kernel_size, activation=relu)
-        self.pool2 = MaxPool2D(pool_size=pool_size)
-        self.conv3 = Conv2D(filters=4*nb_filters, kernel_size=kernel_size, activation=relu)
-        self.pool3 = MaxPool2D(pool_size=pool_size)
-        self.flatten = Flatten()
-        self.dense1 = Dense(units=128, activation=relu)
-        self.dense2 = Dense(units=10, activation=softmax)
-
-    def call(self, inputs):
-        x = self.conv1(inputs)
-        x = self.pool1(x)
-        x = self.conv2(x)
-        x = self.pool2(x)
-        # x = self.conv3(x)
-        # x = self.pool3(x)
-        x = self.flatten(x)
-        x = self.dense1(x)
-        return self.dense2(x)
-
-
 nb_filters = 8
 kernel_size = 3
 pool_size = 2
