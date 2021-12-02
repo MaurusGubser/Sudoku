@@ -14,7 +14,10 @@ if __name__ == '__main__':
     reader.compute_binary_image(thres=2.3, block_size=5)
     # reader.show_all_images()
 
-    reader.find_number_candidates()
+    reader.find_candidates()
+    reader.load_model('NumberClassifier')
+    reader.fill_in_numbers()
+    reader.show_sudoku()
     # reader.canny_edge_detection(kernel_size=5, thres_low=100, thres_upper=200)
     # reader.otsu_thresholding(kernel_size=3)
     # reader.show_edge_image()

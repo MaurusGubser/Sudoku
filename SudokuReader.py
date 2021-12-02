@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib
 import cv2 as cv
-
 import matplotlib.pyplot as plt
+from tensorflow.keras import models
 
 matplotlib.use('tkagg')
 
@@ -10,22 +10,23 @@ matplotlib.use('tkagg')
 class SudokuReader():
 
     def __init__(self):
-        self.solution_field = np.zeros((9, 9), dtype=np.uint8)
+        self.sudoku_field = np.zeros((9, 9), dtype=np.uint8)
         self.input_image = np.empty((1, 1, 3), dtype=np.uint8)
         self.input_edges = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_img = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_gray = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_binary = np.empty((1, 1), dtype=np.uint8)
-
-        self.img_sudoku_gray = np.empty((1, 1), dtype=np.uint8)
         self.lines = np.empty((1, 1), dtype=np.uint8)
+
         self.height_img = 0  # row
         self.width_img = 0  # column
         self.x0_sudoku = 0
         self.y0_sudoku = 0
         self.height_sudoku = 0  # row
-        self.width_sudoku = 0   # column
+        self.width_sudoku = 0  # column
         self.number_candidates = []
+
+        self.number_classifier = None
 
     def read_image_from_source(self, path_src):
         self.input_image = cv.imread(path_src)
@@ -33,6 +34,10 @@ class SudokuReader():
         scale_factor = 800 / long_side
         self.input_image = cv.resize(self.input_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor)
         self.height_img, self.width_img = self.input_image.shape[0], self.input_image.shape[1]
+        return None
+
+    def load_model(self, path_model):
+        self.number_classifier = models.load_model(path_model)
         return None
 
     def show_all_images(self):
@@ -81,6 +86,18 @@ class SudokuReader():
             y2 = int(y0 - long_side * (a))
             cv.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
         plt.imshow(line_img)
+        plt.show()
+        return None
+
+    def show_sudoku(self):
+        drawing = self.sudoku_img.copy()
+        for candidate in self.number_candidates:
+            drawing = cv.putText(drawing, str(candidate['number']),
+                                 (int(candidate['y_center']), int(candidate['x_center'])),
+                                 fontFace=cv.FONT_HERSHEY_PLAIN, fontScale=3, color=(255, 0, 0), thickness=4)
+        fig, axs = plt.subplots(nrows=1, ncols=2)
+        axs[0].imshow(self.sudoku_img)
+        axs[1].imshow(drawing)
         plt.show()
         return None
 
@@ -162,26 +179,23 @@ class SudokuReader():
         self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
         return None
 
-    def find_number_candidates(self):
+    def find_candidates(self):
         self.otsu_thresholding()
         self.close_image()
         thresh = self.sudoku_binary
         nb_labels, labels, stats, centroids = cv.connectedComponentsWithStats(thresh, connectivity=8, ltype=cv.CV_32S)
-
+        """
         fig, axs = plt.subplots(nrows=1, ncols=2)
         axs[0].imshow(thresh, cmap='gray')
         axs[0].set_title('Binary image')
         axs[1].imshow(labels)
         axs[1].set_title('Connected components')
         plt.show()
-
+        """
         output = self.sudoku_img.copy()
         for i in range(0, nb_labels):
             if self.is_candidate_size_realistic(stats[i]):
-                self.number_candidates.append({'y': stats[i, cv.CC_STAT_TOP],
-                                               'x': stats[i, cv.CC_STAT_LEFT],
-                                               'h': stats[i, cv.CC_STAT_HEIGHT],
-                                               'w': stats[i, cv.CC_STAT_WIDTH],
+                self.number_candidates.append({'stats': stats[i],
                                                'y_center': centroids[i, 0],
                                                'x_center': centroids[i, 1]})
             else:
@@ -193,7 +207,6 @@ class SudokuReader():
             h = stats[i, cv.CC_STAT_HEIGHT]
             cx = centroids[i, 1]
             cy = centroids[i, 0]
-            cand_img = self.crop_candidate(stats[i])
             cv.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 3)
             cv.circle(output, (int(cy), int(cx)), 1, (255, 0, 0), 3)
 
@@ -230,10 +243,31 @@ class SudokuReader():
         y = stats[cv.CC_STAT_TOP]
         w = stats[cv.CC_STAT_WIDTH]
         h = stats[cv.CC_STAT_HEIGHT]
-        delta_h = h // 5
-        delta_w = w // 5
+        s = np.max([w, h])
+        x = x + w // 2 - s // 2
+        y = y + h // 2 - s // 2
+        # adding 50 percent of length at each side and end
+        delta_s = s // 4
 
-        img_cand = self.sudoku_gray[y - delta_h:y + delta_h + h, x - delta_w:x + delta_w + w]
+        img_cand = self.sudoku_gray[y - delta_s:y + delta_s + s, x - delta_s:x + delta_s + s]
         img_cand = cv.resize(img_cand, dsize=(28, 28))
-
+        img_cand = img_cand.astype(np.float32) / 255.0
+        img_cand = 1.0 - img_cand
         return img_cand
+
+    def get_position_in_sudoku(self, x_center, y_center):
+        idx_x = int(x_center) // self.width_sudoku
+        idx_y = int(y_center) // self.height_sudoku
+        return idx_x, idx_y
+
+    def fill_in_numbers(self):
+        for candidate in self.number_candidates:
+            img_cand = self.crop_candidate(candidate['stats'])
+            candidate_probs = self.number_classifier.predict(np.reshape(img_cand, (1, 28, 28, 1)))
+            candidate_nb = np.argmax(candidate_probs)
+            candidate['number'] = candidate_nb
+            idx_x, idx_y = self.get_position_in_sudoku(candidate['x_center'], candidate['y_center'])
+            self.sudoku_field[idx_y, idx_x] = candidate_nb
+            # plt.imshow(img_cand)
+            # plt.show()
+        return None
