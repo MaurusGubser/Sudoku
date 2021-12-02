@@ -10,50 +10,64 @@ matplotlib.use('tkagg')
 class SudokuReader():
 
     def __init__(self):
-        self.solution_field = np.zeros((9, 9))
-        self.image = np.empty((1, 1, 3), dtype=np.uint8)
-        self.image_gray = np.empty((1, 1), dtype=np.uint8)
-        self.edges = np.empty((1, 1), dtype=np.uint8)
-        self.image_binary = np.empty((1, 1), dtype=np.uint8)
+        self.solution_field = np.zeros((9, 9), dtype=np.uint8)
+        self.input_image = np.empty((1, 1, 3), dtype=np.uint8)
+        self.input_edges = np.empty((1, 1), dtype=np.uint8)
+        self.sudoku_img = np.empty((1, 1), dtype=np.uint8)
+        self.sudoku_gray = np.empty((1, 1), dtype=np.uint8)
+        self.sudoku_binary = np.empty((1, 1), dtype=np.uint8)
+
+        self.img_sudoku_gray = np.empty((1, 1), dtype=np.uint8)
         self.lines = np.empty((1, 1), dtype=np.uint8)
-        self.height = 0  # row
-        self.width = 0  # column
+        self.height_img = 0  # row
+        self.width_img = 0  # column
+        self.x0_sudoku = 0
+        self.y0_sudoku = 0
+        self.height_sudoku = 0  # row
+        self.width_sudoku = 0   # column
         self.number_candidates = []
 
     def read_image_from_source(self, path_src):
-        self.image = cv.imread(path_src)
-        long_side = max(self.image.shape[0], self.image.shape[1])
+        self.input_image = cv.imread(path_src)
+        long_side = max(self.input_image.shape[0], self.input_image.shape[1])
         scale_factor = 800 / long_side
-        self.image = cv.resize(self.image, dsize=(0, 0), fx=scale_factor, fy=scale_factor)
-        self.image_gray = cv.cvtColor(self.image, cv.COLOR_BGR2GRAY)
-        self.height, self.width = self.image_gray.shape
+        self.input_image = cv.resize(self.input_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor)
+        self.height_img, self.width_img = self.input_image.shape[0], self.input_image.shape[1]
         return None
 
     def show_all_images(self):
-        fig, axs = plt.subplots(nrows=1, ncols=3)
-        axs[0].imshow(self.image)
-        axs[1].imshow(self.image_gray, cmap='gray')
-        axs[2].imshow(self.image_binary, cmap='gray')
+        fig, axs = plt.subplots(nrows=2, ncols=2)
+        axs[0, 0].imshow(self.input_image)
+        axs[0, 0].set_title('Input image')
+        axs[0, 1].imshow(self.input_edges)
+        axs[0, 1].set_title('Edge image')
+        axs[1, 0].imshow(self.sudoku_gray, cmap='gray')
+        axs[1, 0].set_title('Sudoku gray')
+        axs[1, 1].imshow(self.sudoku_binary, cmap='gray')
+        axs[1, 1].set_title(label='Sudoku binary')
+        fig.suptitle('All (relevant) images')
         plt.show()
         return None
 
     def show_all_images_opencv(self):
-        cv.imshow('Sudoku image', self.image)
-        cv.imshow('Sudoku image gray', self.image_gray)
-        cv.imshow('Sudoku image gray', self.image_binary)
+        cv.imshow('Input image', self.input_image)
+        cv.imshow('Input edges', self.input_edges)
+        cv.imshow('Sudoku image gray', self.sudoku_gray)
+        cv.imshow('Sudoku image gray', self.sudoku_binary)
         cv.waitKey(0)
         return None
 
     def show_edge_image(self):
         fig, axs = plt.subplots(nrows=1, ncols=2)
-        axs[0].imshow(self.image_gray, cmap='gray')
-        axs[1].imshow(self.edges, cmap='gray')
+        input_gray = cv.cvtColor(self.input_image, cv.COLOR_BGR2GRAY)
+        axs[0].imshow(input_gray, cmap='gray')
+        axs[1].imshow(self.input_edges, cmap='gray')
         plt.show()
         return None
 
     def show_hough_line(self):
-        line_img = self.image.copy()
-        len_x, len_y, _ = self.image.shape
+        line_img = self.input_image.copy()
+        len_x, len_y, _ = self.input_image.shape
         long_side = max(len_x, len_y)
         for line in self.lines:
             rho, theta = line[0]
@@ -68,46 +82,49 @@ class SudokuReader():
             cv.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
         plt.imshow(line_img)
         plt.show()
+        return None
 
     def save_images(self, path_dest):
-        cv.imwrite(path_dest, self.image)
-        cv.imwrite(path_dest + '_gray', self.image_gray)
-        cv.imwrite(path_dest + '_binary', self.image_binary)
+        cv.imwrite(path_dest, self.input_image)
+        cv.imwrite(path_dest + '_sudoku', self.sudoku_img)
+        cv.imwrite(path_dest + '_gray', self.sudoku_gray)
+        cv.imwrite(path_dest + '_binary', self.sudoku_binary)
         return None
 
     def compute_binary_image(self, gaussian_kernel_size=5, thres=1.0, block_size=5):
-        blur = cv.GaussianBlur(self.image_gray, (gaussian_kernel_size, gaussian_kernel_size), sigmaX=3.0)
-        self.image_binary = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV,
-                                                 blockSize=block_size, C=thres)
+        blur = cv.GaussianBlur(self.sudoku_gray, (gaussian_kernel_size, gaussian_kernel_size), sigmaX=3.0)
+        self.sudoku_binary = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV,
+                                                  blockSize=block_size, C=thres)
         return None
 
     def otsu_thresholding(self, kernel_size=7):
-        blur = cv.GaussianBlur(self.image_gray, (kernel_size, kernel_size), 0)
-        _, self.image_binary = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU)
+        blur = cv.GaussianBlur(self.sudoku_gray, (kernel_size, kernel_size), 0)
+        _, self.sudoku_binary = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU)
         return None
 
     def open_image(self, kernel_shape=cv.MORPH_RECT, kernel_size=3):
         kernel = cv.getStructuringElement(kernel_shape, (kernel_size, kernel_size))
-        self.image_binary = cv.morphologyEx(self.image_binary, cv.MORPH_OPEN, kernel)
+        self.sudoku_binary = cv.morphologyEx(self.sudoku_binary, cv.MORPH_OPEN, kernel)
         return None
 
     def close_image(self, kernel_shape=cv.MORPH_RECT, kernel_size=5):
         kernel = cv.getStructuringElement(kernel_shape, (kernel_size, kernel_size))
-        self.image_binary = cv.morphologyEx(self.image_binary, cv.MORPH_CLOSE, kernel)
+        self.sudoku_binary = cv.morphologyEx(self.sudoku_binary, cv.MORPH_CLOSE, kernel)
         return None
 
     def canny_edge_detection(self, kernel_size=5, thres_low=100, thres_upper=200):
-        blur = cv.GaussianBlur(self.image_gray, ksize=(kernel_size, kernel_size), sigmaX=1.0)
-        self.edges = cv.Canny(blur, thres_low, thres_upper)
+        input_gray = cv.cvtColor(self.input_image, cv.COLOR_BGR2GRAY)
+        input_blur = cv.GaussianBlur(input_gray, ksize=(kernel_size, kernel_size), sigmaX=1.0)
+        self.input_edges = cv.Canny(input_blur, thres_low, thres_upper)
         return None
 
     def hough_line_detection(self, rho=1, theta=np.pi / 180, thres=200):
-        self.lines = cv.HoughLines(self.edges, rho=rho, theta=theta, threshold=thres)
+        self.lines = cv.HoughLines(self.input_edges, rho=rho, theta=theta, threshold=thres)
         return None
 
     def watershed_detection(self, kernel_size=5, mask_size=5):
         # noise removal
-        gray = cv.cvtColor(self.image, cv.COLOR_BGR2GRAY)
+        gray = cv.cvtColor(self.input_image, cv.COLOR_BGR2GRAY)
         ret, thresh = cv.threshold(gray, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU)
         kernel = np.ones((kernel_size, kernel_size), np.uint8)
         opening = cv.morphologyEx(thresh, op=cv.MORPH_OPEN, kernel=kernel, iterations=1)
@@ -120,7 +137,7 @@ class SudokuReader():
         sure_fg = np.uint8(sure_fg)
         unknown = cv.subtract(sure_bg, sure_fg)
         fig, axs = plt.subplots(nrows=2, ncols=3)
-        axs[0, 0].imshow(self.image)
+        axs[0, 0].imshow(self.input_image)
         axs[0, 1].imshow(thresh)
         axs[0, 2].imshow(sure_bg)
         axs[1, 0].imshow(dist_transform)
@@ -129,72 +146,81 @@ class SudokuReader():
         plt.show()
         return None
 
-    def find_contours(self):
+    def find_contour_sudoku(self):
         # self.otsu_thresholding()
         self.canny_edge_detection()
-        area_tot = self.height * self.width
-        contours, hierarchy = cv.findContours(self.edges, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-        img = self.image.copy()
-        for i in range(0, len(contours)):
-            if cv.contourArea(contours[i]) < 0.6 * area_tot:
-                continue
-            color = (np.random.randint(0, 256), np.random.randint(0, 256), np.random.randint(0, 256))
-            # color = (0, 0, 255)
-            cv.drawContours(img, contours, i, color, 2)
-            print('Index={}, Area={}'.format(i, cv.contourArea(contours[i])))
-            plt.imshow(img)
-            plt.show()
+        contours, _ = cv.findContours(self.input_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        areas_candidates = np.array([cv.contourArea(contours[i]) for i in range(0, len(contours))])
+        idx_sudoku = np.argmax(areas_candidates)
+        poly_sudoku = cv.approxPolyDP(contours[idx_sudoku], epsilon=1.0, closed=True)
+        y0, x0, h, w = [int(i) for i in cv.boundingRect(poly_sudoku)]
+        self.x0_sudoku = x0
+        self.y0_sudoku = y0
+        self.height_sudoku = h
+        self.width_sudoku = w
+        self.sudoku_img = self.input_image[y0:y0 + h, x0:x0 + w]
+        self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
         return None
 
-    def label_connected_component(self):
+    def find_number_candidates(self):
         self.otsu_thresholding()
         self.close_image()
-        thresh = self.image_binary
-        numLabels, labels, stats, centroids = cv.connectedComponentsWithStats(thresh, connectivity=8, ltype=cv.CV_32S)
+        thresh = self.sudoku_binary
+        nb_labels, labels, stats, centroids = cv.connectedComponentsWithStats(thresh, connectivity=8, ltype=cv.CV_32S)
 
         fig, axs = plt.subplots(nrows=1, ncols=2)
-        axs[0].imshow(thresh)
+        axs[0].imshow(thresh, cmap='gray')
+        axs[0].set_title('Binary image')
         axs[1].imshow(labels)
+        axs[1].set_title('Connected components')
         plt.show()
 
-        output = self.image.copy()
-        for i in range(0, numLabels):
+        output = self.sudoku_img.copy()
+        for i in range(0, nb_labels):
             if self.is_candidate_size_realistic(stats[i]):
-                self.number_candidates.append(stats[i])
+                self.number_candidates.append({'y': stats[i, cv.CC_STAT_TOP],
+                                               'x': stats[i, cv.CC_STAT_LEFT],
+                                               'h': stats[i, cv.CC_STAT_HEIGHT],
+                                               'w': stats[i, cv.CC_STAT_WIDTH],
+                                               'y_center': centroids[i, 0],
+                                               'x_center': centroids[i, 1]})
             else:
                 continue
-
+        """
             x = stats[i, cv.CC_STAT_LEFT]
             y = stats[i, cv.CC_STAT_TOP]
             w = stats[i, cv.CC_STAT_WIDTH]
             h = stats[i, cv.CC_STAT_HEIGHT]
-            cand = self.crop_candidate(stats[i])
-            plt.imshow(cand)
-            #plt.show()
+            cx = centroids[i, 1]
+            cy = centroids[i, 0]
+            cand_img = self.crop_candidate(stats[i])
             cv.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 3)
+            cv.circle(output, (int(cy), int(cx)), 1, (255, 0, 0), 3)
 
         plt.imshow(output)
+        plt.title('Candidates found')
         plt.show()
+        """
         return None
 
     def harris_corner(self, block_size=2, ksize=3, k=0.15):
-        self.image_gray = np.float32(self.image_gray)
-        dst = cv.cornerHarris(self.image_gray, blockSize=block_size, ksize=ksize, k=k)
+        self.sudoku_gray = np.float32(self.sudoku_gray)
+        dst = cv.cornerHarris(self.sudoku_gray, blockSize=block_size, ksize=ksize, k=k)
         dst = cv.dilate(dst, None)
-        self.image[dst > 0.01 * dst.max()] = [0, 0, 255]
+        self.input_image[dst > 0.01 * dst.max()] = [0, 0, 255]
         return None
 
     def is_candidate_size_realistic(self, stats):
-        # assuming A_tot <= (3/2 * s)**2
-        # assuming 1/3 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
-        total_area = self.height * self.width
+        # assuming area_total \approx A_sudoku = s**2
+        # assuming 1/10 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
+        # s being the side length of the sudoku square
+        area_total = self.height_sudoku * self.width_sudoku
         w = stats[cv.CC_STAT_WIDTH]
         h = stats[cv.CC_STAT_HEIGHT]
         area_cand = w * h
-        if h / w < 1 / 3.0 or 3.0 < h / w:
+        if h / w < 1.0 / 3.0 or 3.0 < h / w:
             return False
-        # elif area_cand / total_area < 0.0004 or 0.0025 < area_cand / total_area:
-        elif area_cand / total_area < 0.000457 or 0.0123 < area_cand / total_area:
+        elif area_cand / area_total < 0.0012 or 0.012 < area_cand / area_total:
             return False
         else:
             return True
@@ -207,7 +233,7 @@ class SudokuReader():
         delta_h = h // 5
         delta_w = w // 5
 
-        img_cand = self.image_gray[y - delta_h:y + delta_h + h, x - delta_w:x + delta_w + w]
+        img_cand = self.sudoku_gray[y - delta_h:y + delta_h + h, x - delta_w:x + delta_w + w]
         img_cand = cv.resize(img_cand, dsize=(28, 28))
 
         return img_cand
