@@ -7,7 +7,7 @@ from SudokuReader import SudokuReader
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     reader = SudokuReader()
-    path = 'Sudoku_Images/Sudoku1.jpeg'
+    path = 'Sudoku_Images/Sudoku5.jpg'
     reader.read_image_from_source(path)
 
     reader.find_contour_sudoku()
@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # reader.show_all_images()
 
     reader.find_candidates()
-    reader.load_model('NumberClassifier')
+    reader.load_model('NumberClassifierLarge')
     reader.fill_in_numbers()
     reader.show_sudoku()
     # reader.canny_edge_detection(kernel_size=5, thres_low=100, thres_upper=200)

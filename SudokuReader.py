@@ -233,7 +233,7 @@ class SudokuReader():
         area_cand = w * h
         if h / w < 1.0 / 3.0 or 3.0 < h / w:
             return False
-        elif area_cand / area_total < 0.0012 or 0.012 < area_cand / area_total:
+        elif area_cand / area_total < 0.001 or 0.01 < area_cand / area_total:
             return False
         else:
             return True
@@ -243,13 +243,16 @@ class SudokuReader():
         y = stats[cv.CC_STAT_TOP]
         w = stats[cv.CC_STAT_WIDTH]
         h = stats[cv.CC_STAT_HEIGHT]
-        s = np.max([w, h])
+        s = max(w, h)
         x = x + w // 2 - s // 2
         y = y + h // 2 - s // 2
-        # adding 50 percent of length at each side and end
+        # adding 10 percent of length at each side and end
         delta_s = s // 4
-
-        img_cand = self.sudoku_gray[y - delta_s:y + delta_s + s, x - delta_s:x + delta_s + s]
+        x_left = max(x - delta_s, 0)
+        x_right = min(x + delta_s + s, self.width_sudoku)
+        y_up = max(y - delta_s, 0)
+        y_down = min(y + delta_s + s, self.height_sudoku)
+        img_cand = self.sudoku_gray[y_up:y_down, x_left:x_right]
         img_cand = cv.resize(img_cand, dsize=(28, 28))
         img_cand = img_cand.astype(np.float32) / 255.0
         img_cand = 1.0 - img_cand
