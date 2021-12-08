@@ -164,9 +164,26 @@ class SudokuReader():
         return None
 
     def find_contour_sudoku(self):
-        # self.otsu_thresholding()
         self.canny_edge_detection()
         contours, _ = cv.findContours(self.input_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        contours = sorted(contours, key=cv.contourArea, reverse=True)
+        for candidate in contours:
+            perimeter_candidate = cv.arcLength(candidate, True)
+            poly_candidate = cv.approxPolyDP(candidate, epsilon=0.05 * perimeter_candidate, closed=True)
+            output = self.input_image.copy()
+            cv.drawContours(output, [poly_candidate], -1, (0, 255, 0), 2)
+            plt.imshow(output)
+            plt.show()
+            if len(poly_candidate) == 4:
+                x0, y0, w, h = [int(i) for i in cv.boundingRect(poly_candidate)]
+                self.x0_sudoku = x0
+                self.y0_sudoku = y0
+                self.height_sudoku = h
+                self.width_sudoku = w
+                self.sudoku_img = self.input_image[y0:y0 + h, x0:x0 + w]
+                self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
+                return None
+        """
         areas_candidates = np.array([cv.contourArea(contours[i]) for i in range(0, len(contours))])
         idx_sudoku = np.argmax(areas_candidates)
         poly_sudoku = cv.approxPolyDP(contours[idx_sudoku], epsilon=1.0, closed=True)
@@ -177,6 +194,7 @@ class SudokuReader():
         self.width_sudoku = w
         self.sudoku_img = self.input_image[y0:y0 + h, x0:x0 + w]
         self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
+        """
         return None
 
     def find_candidates(self):

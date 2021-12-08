@@ -7,7 +7,7 @@ from SudokuReader import SudokuReader
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     reader = SudokuReader()
-    path = 'Sudoku_Images/Sudoku5.jpg'
+    path = 'Sudoku_Images/Sudoku3.jpg'
     reader.read_image_from_source(path)
 
     reader.find_contour_sudoku()
