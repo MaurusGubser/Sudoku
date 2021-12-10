@@ -71,34 +71,6 @@ class SudokuReader:
         plt.show()
         return None
 
-    def show_all_images_opencv(self):
-        cv.imshow('Input image', self.input_image)
-        cv.imshow('Input edges', self.input_edges)
-        cv.imshow('Sudoku image gray', self.sudoku_gray)
-        cv.imshow('Sudoku image gray', self.sudoku_binary)
-        cv.waitKey(0)
-        return None
-
-    def show_hough_line(self):
-        line_img = self.input_image.copy()
-        len_x, len_y, _ = self.input_image.shape
-        long_side = max(len_x, len_y)
-        for line in self.lines:
-            rho, theta = line[0]
-            a = np.cos(theta)
-            b = np.sin(theta)
-            x0 = a * rho
-            y0 = b * rho
-            x1 = int(x0 + long_side * (-b))
-            y1 = int(y0 + long_side * a)
-            x2 = int(x0 - long_side * (-b))
-            y2 = int(y0 - long_side * a)
-            cv.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
-        plt.imshow(line_img)
-        plt.title('Lines detected by Hough')
-        plt.show()
-        return None
-
     def show_candidates(self):
         drawing = self.sudoku_img.copy()
         for candidate in self.number_candidates:
@@ -130,13 +102,6 @@ class SudokuReader:
         plt.show()
         return None
 
-    def save_images(self, path_dest):
-        cv.imwrite(path_dest, self.input_image)
-        cv.imwrite(path_dest + '_sudoku', self.sudoku_img)
-        cv.imwrite(path_dest + '_gray', self.sudoku_gray)
-        cv.imwrite(path_dest + '_binary', self.sudoku_binary)
-        return None
-
     def compute_binary_image(self, gaussian_kernel_size=5, thres=1.0, block_size=5):
         blur = cv.GaussianBlur(self.sudoku_gray, (gaussian_kernel_size, gaussian_kernel_size), sigmaX=3.0)
         self.sudoku_binary = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV,
@@ -162,37 +127,6 @@ class SudokuReader:
         input_gray = cv.cvtColor(self.input_image, cv.COLOR_BGR2GRAY)
         input_blur = cv.GaussianBlur(input_gray, ksize=(kernel_size, kernel_size), sigmaX=1.0)
         self.input_edges = cv.Canny(input_blur, thres_low, thres_upper)
-        return None
-
-    def hough_line_detection(self, rho=1, theta=np.pi / 180, thres=200):
-        self.lines = cv.HoughLines(self.input_edges, rho=rho, theta=theta, threshold=thres)
-        return None
-
-    def watershed_detection(self, kernel_size=5, mask_size=5):
-        # noise removal
-        gray = cv.cvtColor(self.input_image, cv.COLOR_BGR2GRAY)
-        ret, thresh = cv.threshold(gray, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU)
-        kernel = np.ones((kernel_size, kernel_size), np.uint8)
-        opening = cv.morphologyEx(thresh, op=cv.MORPH_OPEN, kernel=kernel, iterations=1)
-        # sure background area
-        sure_bg = cv.dilate(opening, kernel=kernel, iterations=1)
-        # Finding sure foreground area
-        dist_transform = cv.distanceTransform(opening, distanceType=cv.DIST_L2, maskSize=mask_size)
-        ret, sure_fg = cv.threshold(dist_transform, thresh=0.7 * dist_transform.max(), maxval=255, type=0)
-        # Finding unknown region
-        sure_fg = np.uint8(sure_fg)
-        unknown = cv.subtract(sure_bg, sure_fg)
-        # debug
-        if self.debug:
-            fig, axs = plt.subplots(nrows=2, ncols=3)
-            axs[0, 0].imshow(self.input_image)
-            axs[0, 1].imshow(thresh)
-            axs[0, 2].imshow(sure_bg)
-            axs[1, 0].imshow(dist_transform)
-            axs[1, 1].imshow(sure_fg)
-            axs[1, 2].imshow(unknown)
-            plt.show()
-        # end debug
         return None
 
     def rectify_image_sudoku(self, source_pts):
@@ -282,13 +216,6 @@ class SudokuReader:
         else:
             return False
 
-    def harris_corner(self, block_size=2, ksize=3, k=0.15):
-        self.sudoku_gray = np.float32(self.sudoku_gray)
-        dst = cv.cornerHarris(self.sudoku_gray, blockSize=block_size, ksize=ksize, k=k)
-        dst = cv.dilate(dst, None)
-        self.input_image[dst > 0.01 * dst.max()] = [0, 0, 255]
-        return None
-
     def is_candidate_size_realistic(self, stats):
         # assuming 1/20 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
         # s being the side length of the sudoku square
@@ -321,11 +248,6 @@ class SudokuReader:
         _, img_thres = cv.threshold(img_cand, 140, 255, cv.THRESH_BINARY_INV)
         img_thres = cv.resize(img_thres, dsize=(28, 28))
         img_thres = img_thres.astype(np.float32) / 255.0
-
-        img_cand = cv.resize(img_cand, dsize=(28, 28))
-        img_cand = img_cand.astype(np.float32) / 255.0
-        img_cand = (np.max(img_cand) - img_cand)
-        img_cand = img_cand / np.max(img_cand)
         # debug
         if self.debug:
             fig, axs = plt.subplots(nrows=1, ncols=2)
@@ -335,7 +257,6 @@ class SudokuReader:
             axs[1].set_title('Thres opencv')
             plt.show()
         # end debug
-        # return img_cand
         return img_thres
 
     def get_position_in_sudoku(self, x_center, y_center, dist_x, dist_y):
