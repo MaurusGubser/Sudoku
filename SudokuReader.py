@@ -8,8 +8,7 @@ from tensorflow.keras import models
 matplotlib.use('tkagg')
 
 
-class SudokuReader():
-
+class SudokuReader:
     def __init__(self, path_img, path_clf, debug=False):
         self.input_image = np.empty((1, 1, 3), dtype=np.uint8)
         self.input_edges = np.empty((1, 1), dtype=np.uint8)
@@ -91,9 +90,9 @@ class SudokuReader():
             x0 = a * rho
             y0 = b * rho
             x1 = int(x0 + long_side * (-b))
-            y1 = int(y0 + long_side * (a))
+            y1 = int(y0 + long_side * a)
             x2 = int(x0 - long_side * (-b))
-            y2 = int(y0 - long_side * (a))
+            y2 = int(y0 - long_side * a)
             cv.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
         plt.imshow(line_img)
         plt.title('Lines detected by Hough')
@@ -198,11 +197,11 @@ class SudokuReader():
 
     def rectify_image_sudoku(self, source_pts):
         source_pts = np.array(source_pts, dtype=np.float32)
-        A = np.array([0, 0])
-        B = np.array([0, self.side_sudoku])
-        C = np.array([self.side_sudoku, self.side_sudoku])
-        D = np.array([self.side_sudoku, 0])
-        destination_pts = np.array([A, B, C, D], dtype=np.float32)
+        a = np.array([0, 0])
+        b = np.array([0, self.side_sudoku])
+        c = np.array([self.side_sudoku, self.side_sudoku])
+        d = np.array([self.side_sudoku, 0])
+        destination_pts = np.array([a, b, c, d], dtype=np.float32)
 
         invtf = cv.getPerspectiveTransform(source_pts, destination_pts)
         self.sudoku_img = cv.warpPerspective(self.input_image, invtf, dsize=(self.side_sudoku, self.side_sudoku))
@@ -340,6 +339,7 @@ class SudokuReader():
         return img_thres
 
     def get_position_in_sudoku(self, x_center, y_center, dist_x, dist_y):
+        # check if contour shape might be much larger than sudoku field, which can lead to mapping error
         if 8 * dist_x < 7 * self.side_sudoku or 8 * dist_y < 7 * self.side_sudoku:
             warnings.warn('Possible wrong mapping of candidates to sudoku field.')
         idx_x = int(9 * x_center / self.side_sudoku)
@@ -386,5 +386,5 @@ class SudokuReader():
         else:
             print('Found no sudoku field in image.')
             plt.imshow(self.input_image)
-            plt.set_title('Input image')
+            plt.title('Input image')
             return False
