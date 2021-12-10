@@ -372,7 +372,6 @@ class SudokuReader():
             self.compute_binary_image(thres=2.3, block_size=5)
             if self.find_candidates():
                 self.fill_in_numbers()
-                self.show_candidates()
                 if self.debug:
                     self.show_candidates()
                 return True
