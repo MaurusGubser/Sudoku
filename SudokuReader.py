@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import matplotlib
 import cv2 as cv
@@ -9,25 +10,41 @@ matplotlib.use('tkagg')
 
 class SudokuReader():
 
-    def __init__(self):
-        self.sudoku_field = np.zeros((9, 9), dtype=np.uint8)
+    def __init__(self, path_img, path_clf, debug=False):
         self.input_image = np.empty((1, 1, 3), dtype=np.uint8)
         self.input_edges = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_img = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_gray = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_binary = np.empty((1, 1), dtype=np.uint8)
         self.lines = np.empty((1, 1), dtype=np.uint8)
+        self.read_image_from_source(path_img)
 
-        self.height_img = 0  # row
-        self.width_img = 0  # column
-        self.x0_sudoku = 0
-        self.y0_sudoku = 0
-        self.height_sudoku = 0  # nb rows in original image
-        self.width_sudoku = 0  # nb columns in original image
-        self.side_sudoku = 0    # nb rows = nb cols in rectified image
+        self.height_img = 0  # nb rows input image
+        self.width_img = 0  # nb columns input image
+        self.x0_sudoku = 0  # x coord of upper left pt of sudoku in input image
+        self.y0_sudoku = 0  # y coord of upper left pt of sudoku in input image
+        self.height_sudoku = 0  # nb rows sudoku image
+        self.width_sudoku = 0  # nb columns sudoku image
+        self.side_sudoku = 0  # nb rows = nb cols in rectified image
         self.number_candidates = []
 
+        self.sudoku_field = np.zeros((9, 9), dtype=np.uint8)
         self.number_classifier = None
+        self.load_model(path_clf)
+
+        self.debug = debug  # show images in debug mode
+
+    @staticmethod
+    def order_rectangle_points(poly_candidate):
+        pts_unsorted = np.reshape(poly_candidate, (4, 2))
+        pts_sorted = np.empty((4, 2))
+        coord_sum = np.sum(pts_unsorted, axis=1)
+        pts_sorted[0] = pts_unsorted[np.argmin(coord_sum)]
+        pts_sorted[2] = pts_unsorted[np.argmax(coord_sum)]
+        coord_diff = np.diff(pts_unsorted, axis=1)
+        pts_sorted[1] = pts_unsorted[np.argmax(coord_diff)]
+        pts_sorted[3] = pts_unsorted[np.argmin(coord_diff)]
+        return pts_sorted
 
     def read_image_from_source(self, path_src):
         self.input_image = cv.imread(path_src)
@@ -63,14 +80,6 @@ class SudokuReader():
         cv.waitKey(0)
         return None
 
-    def show_edge_image(self):
-        fig, axs = plt.subplots(nrows=1, ncols=2)
-        input_gray = cv.cvtColor(self.input_image, cv.COLOR_BGR2GRAY)
-        axs[0].imshow(input_gray, cmap='gray')
-        axs[1].imshow(self.input_edges, cmap='gray')
-        plt.show()
-        return None
-
     def show_hough_line(self):
         line_img = self.input_image.copy()
         len_x, len_y, _ = self.input_image.shape
@@ -87,18 +96,38 @@ class SudokuReader():
             y2 = int(y0 - long_side * (a))
             cv.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
         plt.imshow(line_img)
+        plt.title('Lines detected by Hough')
         plt.show()
         return None
 
-    def show_sudoku(self):
+    def show_candidates(self):
         drawing = self.sudoku_img.copy()
         for candidate in self.number_candidates:
             drawing = cv.putText(drawing, str(candidate['number']),
-                                 (int(candidate['y_center']), int(candidate['x_center'])),
+                                 (int(candidate['x_center']), int(candidate['y_center'])),
                                  fontFace=cv.FONT_HERSHEY_PLAIN, fontScale=3, color=(255, 0, 0), thickness=4)
         fig, axs = plt.subplots(nrows=1, ncols=2)
         axs[0].imshow(self.sudoku_img)
+        axs[0].set_title('Sudoku contour')
         axs[1].imshow(drawing)
+        axs[1].set_title('Detected numbers')
+        plt.show()
+        return None
+
+    def show_solution_on_sudoku(self, field):
+        drawing = self.sudoku_img.copy()
+        step = self.side_sudoku // 9
+        delta = self.side_sudoku // 36
+
+        for row in range(0, 9):
+            for col in range(0, 9):
+                drawing = cv.putText(drawing, str(field[row, col]), (col * step + delta, (row + 1) * step - delta),
+                                     fontFace=cv.FONT_HERSHEY_PLAIN, fontScale=3, color=(255, 0, 0), thickness=3)
+        fig, axs = plt.subplots(nrows=1, ncols=2)
+        axs[0].imshow(self.input_image)
+        axs[0].set_title('Input image')
+        axs[1].imshow(drawing)
+        axs[1].set_title('One possible solution')
         plt.show()
         return None
 
@@ -154,27 +183,18 @@ class SudokuReader():
         # Finding unknown region
         sure_fg = np.uint8(sure_fg)
         unknown = cv.subtract(sure_bg, sure_fg)
-        fig, axs = plt.subplots(nrows=2, ncols=3)
-        axs[0, 0].imshow(self.input_image)
-        axs[0, 1].imshow(thresh)
-        axs[0, 2].imshow(sure_bg)
-        axs[1, 0].imshow(dist_transform)
-        axs[1, 1].imshow(sure_fg)
-        axs[1, 2].imshow(unknown)
-        plt.show()
+        # debug
+        if self.debug:
+            fig, axs = plt.subplots(nrows=2, ncols=3)
+            axs[0, 0].imshow(self.input_image)
+            axs[0, 1].imshow(thresh)
+            axs[0, 2].imshow(sure_bg)
+            axs[1, 0].imshow(dist_transform)
+            axs[1, 1].imshow(sure_fg)
+            axs[1, 2].imshow(unknown)
+            plt.show()
+        # end debug
         return None
-
-    @staticmethod
-    def order_rectangle_points(poly_candidate):
-        pts_unsorted = np.reshape(poly_candidate, (4, 2))
-        pts_sorted = np.empty((4, 2))
-        coord_sum = np.sum(pts_unsorted, axis=1)
-        pts_sorted[0] = pts_unsorted[np.argmin(coord_sum)]
-        pts_sorted[2] = pts_unsorted[np.argmax(coord_sum)]
-        coord_diff = np.diff(pts_unsorted, axis=1)
-        pts_sorted[1] = pts_unsorted[np.argmax(coord_diff)]
-        pts_sorted[3] = pts_unsorted[np.argmin(coord_diff)]
-        return pts_sorted
 
     def rectify_image_sudoku(self, source_pts):
         source_pts = np.array(source_pts, dtype=np.float32)
@@ -188,22 +208,13 @@ class SudokuReader():
         self.sudoku_img = cv.warpPerspective(self.input_image, invtf, dsize=(self.side_sudoku, self.side_sudoku))
         return None
 
-    def find_contour_sudoku(self):
+    def find_contour_sudoku(self, side_length):
         self.canny_edge_detection()
         contours, _ = cv.findContours(self.input_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         contours = sorted(contours, key=cv.contourArea, reverse=True)
         for candidate in contours:
             perimeter_candidate = cv.arcLength(candidate, True)
             poly_candidate = cv.approxPolyDP(candidate, epsilon=0.05 * perimeter_candidate, closed=True)
-            """
-            # debug
-            output = self.input_image.copy()
-            cv.drawContours(output, [poly_candidate], -1, (0, 255, 0), 2)
-            plt.imshow(output)
-            plt.title('Candidate contour')
-            plt.show()
-            # end debug
-            """
             if len(poly_candidate) == 4:
                 x0, y0, w, h = [int(i) for i in cv.boundingRect(poly_candidate)]
                 self.x0_sudoku = x0
@@ -211,23 +222,21 @@ class SudokuReader():
                 self.height_sudoku = h
                 self.width_sudoku = w
                 source_pts = self.order_rectangle_points(poly_candidate)
-                self.side_sudoku = max(w, h, 500)
+                self.side_sudoku = max(w, h, side_length)
                 self.rectify_image_sudoku(source_pts)
-                """
-                # debug
-                output = self.input_image.copy()
-                fig, axs = plt.subplots(nrows=1, ncols=2)
-                for i in range(0, 4):
-                    cv.circle(output, (int(source_pts[i][0]), int(source_pts[i][1])), 3, (0, 255, 0))
-                axs[0].imshow(output)
-                axs[0].set_title('Four points contour')
-                axs[1].imshow(self.sudoku_img)
-                axs[1].set_title('Cropped sudoku contour')
-                plt.show()
-                # debug end
-                """
-                # self.sudoku_img = self.input_image[y0:y0 + h, x0:x0 + w]
                 self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
+                # debug
+                if self.debug:
+                    output = self.input_image.copy()
+                    fig, axs = plt.subplots(nrows=1, ncols=2)
+                    for i in range(0, 4):
+                        cv.circle(output, (int(source_pts[i][0]), int(source_pts[i][1])), 3, (0, 255, 0))
+                    axs[0].imshow(output)
+                    axs[0].set_title('Four points contour')
+                    axs[1].imshow(self.sudoku_img)
+                    axs[1].set_title('Cropped sudoku contour')
+                    plt.show()
+                # debug end
                 return True
         print('No contour found which corresponds to a possible sudoku square.')
         return False
@@ -235,42 +244,44 @@ class SudokuReader():
     def find_candidates(self):
         self.otsu_thresholding()
         self.close_image()
-        thresh = self.sudoku_binary
-        nb_labels, labels, stats, centroids = cv.connectedComponentsWithStats(thresh, connectivity=8, ltype=cv.CV_32S)
-        """
+        nb_labels, labels, stats, centroids = cv.connectedComponentsWithStats(self.sudoku_binary, connectivity=8,
+                                                                              ltype=cv.CV_32S)
         # debug
-        fig, axs = plt.subplots(nrows=1, ncols=2)
-        axs[0].imshow(thresh, cmap='gray')
-        axs[0].set_title('Binary image')
-        axs[1].imshow(labels)
-        axs[1].set_title('Connected components')
-        plt.show()
+        if self.debug:
+            fig, axs = plt.subplots(nrows=1, ncols=2)
+            axs[0].imshow(self.sudoku_binary, cmap='gray')
+            axs[0].set_title('Binary image')
+            axs[1].imshow(labels)
+            axs[1].set_title('Connected components')
+            plt.show()
+
+            output = self.sudoku_img.copy()
+            for i in range(0, nb_labels):
+                if self.is_candidate_size_realistic(stats[i]):
+                    x = stats[i, cv.CC_STAT_LEFT]
+                    y = stats[i, cv.CC_STAT_TOP]
+                    w = stats[i, cv.CC_STAT_WIDTH]
+                    h = stats[i, cv.CC_STAT_HEIGHT]
+                    cx = centroids[i, 0]
+                    cy = centroids[i, 1]
+                    cv.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 3)
+                    cv.circle(output, (int(cx), int(cy)), 1, (255, 0, 0), 3)
+            plt.imshow(output)
+            plt.title('Candidates found')
+            plt.show()
         # end debug
-        """
-        output = self.sudoku_img.copy()
         for i in range(0, nb_labels):
             if self.is_candidate_size_realistic(stats[i]):
                 self.number_candidates.append({'stats': stats[i],
-                                               'y_center': centroids[i, 0],
-                                               'x_center': centroids[i, 1]})
+                                               'x_center': centroids[i, 0],
+                                               'y_center': centroids[i, 1]})
             else:
                 continue
-        """
-        # debug
-            x = stats[i, cv.CC_STAT_LEFT]
-            y = stats[i, cv.CC_STAT_TOP]
-            w = stats[i, cv.CC_STAT_WIDTH]
-            h = stats[i, cv.CC_STAT_HEIGHT]
-            cx = centroids[i, 1]
-            cy = centroids[i, 0]
-            cv.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 3)
-            cv.circle(output, (int(cy), int(cx)), 1, (255, 0, 0), 3)
-        plt.imshow(output)
-        plt.title('Candidates found')
-        plt.show()
-        # end debug
-        """
-        return None
+
+        if self.number_candidates:
+            return True
+        else:
+            return False
 
     def harris_corner(self, block_size=2, ksize=3, k=0.15):
         self.sudoku_gray = np.float32(self.sudoku_gray)
@@ -280,7 +291,7 @@ class SudokuReader():
         return None
 
     def is_candidate_size_realistic(self, stats):
-        # assuming 1/10 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
+        # assuming 1/20 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
         # s being the side length of the sudoku square
         area_total = self.side_sudoku * self.side_sudoku
         w = stats[cv.CC_STAT_WIDTH]
@@ -288,7 +299,7 @@ class SudokuReader():
         area_cand = w * h
         if h / w < 1.0 / 3.0 or 3.0 < h / w:
             return False
-        elif area_cand / area_total < 0.001 or 0.01 < area_cand / area_total:
+        elif area_cand / area_total < 0.0005 or 0.01 < area_cand / area_total:
             return False
         else:
             return True
@@ -308,42 +319,73 @@ class SudokuReader():
         y_up = max(y - delta_s, 0)
         y_down = min(y + delta_s + s, self.side_sudoku)
         img_cand = self.sudoku_gray[y_up:y_down, x_left:x_right]
-        _, img_thres = cv.threshold(img_cand, 100, 255, cv.THRESH_TOZERO)
-        """
-        # debug
-        fig, axs = plt.subplots(nrows=1, ncols=2)
-        axs[0].imshow(img_cand, cmap='gray')
-        axs[0].set_title('Candidate')
-        axs[1].imshow(img_thres, cmap='gray')
-        axs[1].set_title('Thres')
-        plt.show()
-        # end debug
-        """
+        _, img_thres = cv.threshold(img_cand, 140, 255, cv.THRESH_BINARY_INV)
+        img_thres = cv.resize(img_thres, dsize=(28, 28))
+        img_thres = img_thres.astype(np.float32) / 255.0
+
         img_cand = cv.resize(img_cand, dsize=(28, 28))
         img_cand = img_cand.astype(np.float32) / 255.0
-        # img_cand = 1.0 - img_cand
         img_cand = (np.max(img_cand) - img_cand)
         img_cand = img_cand / np.max(img_cand)
-        return img_cand
+        # debug
+        if self.debug:
+            fig, axs = plt.subplots(nrows=1, ncols=2)
+            axs[0].imshow(img_cand, cmap='gray')
+            axs[0].set_title('Candidate')
+            axs[1].imshow(img_thres, cmap='gray')
+            axs[1].set_title('Thres opencv')
+            plt.show()
+        # end debug
+        # return img_cand
+        return img_thres
 
-    def get_position_in_sudoku(self, x_center, y_center):
-        idx_x = int(x_center) // self.side_sudoku
-        idx_y = int(y_center) // self.side_sudoku
+    def get_position_in_sudoku(self, x_center, y_center, dist_x, dist_y):
+        if 8 * dist_x < 7 * self.side_sudoku or 8 * dist_y < 7 * self.side_sudoku:
+            warnings.warn('Possible wrong mapping of candidates to sudoku field.')
+        idx_x = int(9 * x_center / self.side_sudoku)
+        idx_y = int(9 * y_center / self.side_sudoku)
+        assert idx_x < 9 and idx_y < 9, 'Computed index is too large; number does not fit into sudoku.'
         return idx_x, idx_y
 
     def fill_in_numbers(self):
+        x_coords = np.array([candidate['stats'][cv.CC_STAT_LEFT] for candidate in self.number_candidates])
+        y_coords = np.array([candidate['stats'][cv.CC_STAT_TOP] for candidate in self.number_candidates])
+        dist_x = np.max(x_coords) - np.min(x_coords)
+        dist_y = np.max(y_coords) - np.min(y_coords)
         for candidate in self.number_candidates:
             img_cand = self.crop_candidate(candidate['stats'])
             candidate_probs = self.number_classifier.predict(np.reshape(img_cand, (1, 28, 28, 1)))
             candidate_nb = np.argmax(candidate_probs)
             candidate['number'] = candidate_nb
-            idx_x, idx_y = self.get_position_in_sudoku(candidate['x_center'], candidate['y_center'])
+            idx_x, idx_y = self.get_position_in_sudoku(candidate['x_center'], candidate['y_center'], dist_x, dist_y)
             self.sudoku_field[idx_y, idx_x] = candidate_nb
-            """
             # debug
-            plt.imshow(img_cand)
-            plt.title('Prediced nb {}'.format(candidate_nb))
-            plt.show()
+            if self.debug:
+                plt.imshow(img_cand)
+                plt.title('Predicted nb {}'.format(candidate_nb))
+                plt.show()
             # end debug
-            """
         return None
+
+    def get_sudoku_field_from_image(self):
+        if self.find_contour_sudoku(side_length=500):
+            self.compute_binary_image(thres=2.3, block_size=5)
+            if self.find_candidates():
+                self.fill_in_numbers()
+                self.show_candidates()
+                if self.debug:
+                    self.show_candidates()
+                return True
+            else:
+                print('Found no numbers in sudoku.')
+                fig, axs = plt.subplots(nrows=1, ncols=2)
+                axs[0].imshow(self.input_image)
+                axs[0].set_title('Input image')
+                axs[1].imshow(self.sudoku_img)
+                axs[1].set_title('Sudoku field found')
+                return False
+        else:
+            print('Found no sudoku field in image.')
+            plt.imshow(self.input_image)
+            plt.set_title('Input image')
+            return False
