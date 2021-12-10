@@ -195,10 +195,15 @@ class SudokuReader():
         for candidate in contours:
             perimeter_candidate = cv.arcLength(candidate, True)
             poly_candidate = cv.approxPolyDP(candidate, epsilon=0.05 * perimeter_candidate, closed=True)
+            """
+            # debug
             output = self.input_image.copy()
             cv.drawContours(output, [poly_candidate], -1, (0, 255, 0), 2)
             plt.imshow(output)
+            plt.title('Candidate contour')
             plt.show()
+            # end debug
+            """
             if len(poly_candidate) == 4:
                 x0, y0, w, h = [int(i) for i in cv.boundingRect(poly_candidate)]
                 self.x0_sudoku = x0
@@ -206,17 +211,21 @@ class SudokuReader():
                 self.height_sudoku = h
                 self.width_sudoku = w
                 source_pts = self.order_rectangle_points(poly_candidate)
-                self.side_sudoku = max(w, h, 600)
+                self.side_sudoku = max(w, h, 500)
                 self.rectify_image_sudoku(source_pts)
+                """
                 # debug
                 output = self.input_image.copy()
                 fig, axs = plt.subplots(nrows=1, ncols=2)
                 for i in range(0, 4):
                     cv.circle(output, (int(source_pts[i][0]), int(source_pts[i][1])), 3, (0, 255, 0))
                 axs[0].imshow(output)
+                axs[0].set_title('Four points contour')
                 axs[1].imshow(self.sudoku_img)
+                axs[1].set_title('Cropped sudoku contour')
                 plt.show()
                 # debug end
+                """
                 # self.sudoku_img = self.input_image[y0:y0 + h, x0:x0 + w]
                 self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
                 return True
@@ -279,7 +288,7 @@ class SudokuReader():
         area_cand = w * h
         if h / w < 1.0 / 3.0 or 3.0 < h / w:
             return False
-        elif area_cand / area_total < 0.0012 or 0.012 < area_cand / area_total:
+        elif area_cand / area_total < 0.001 or 0.01 < area_cand / area_total:
             return False
         else:
             return True
@@ -292,7 +301,7 @@ class SudokuReader():
         s = max(w, h)
         x = x + w // 2 - s // 2
         y = y + h // 2 - s // 2
-        # adding 20 percent of length at each side and end
+        # adding 20 percent of length at each side
         delta_s = s // 5
         x_left = max(x - delta_s, 0)
         x_right = min(x + delta_s + s, self.side_sudoku)
@@ -305,20 +314,31 @@ class SudokuReader():
         return img_cand
 
     def get_position_in_sudoku(self, x_center, y_center):
-        idx_x = int(x_center) // self.width_sudoku
-        idx_y = int(y_center) // self.height_sudoku
+        #idx_x = int(x_center) // self.width_sudoku
+        #idx_y = int(y_center) // self.height_sudoku
+        idx_x = int(x_center) // self.side_sudoku
+        idx_y = int(y_center) // self.side_sudoku
         return idx_x, idx_y
 
     def fill_in_numbers(self):
         for candidate in self.number_candidates:
             img_cand = self.crop_candidate(candidate['stats'])
-            # debug
-            # plt.imshow(img_cand)
-            # plt.show()
-            # end debug
-            candidate_probs = self.number_classifier.predict(np.reshape(img_cand, (1, 28, 28, 1)))
+            shift = np.min(img_cand) - 0.001
+            scale = np.max(img_cand - shift) + 0.001
+            img_rescaled = (img_cand - shift) / scale
+            candidate_probs = self.number_classifier.predict(np.reshape(img_rescaled, (1, 28, 28, 1)))
             candidate_nb = np.argmax(candidate_probs)
             candidate['number'] = candidate_nb
             idx_x, idx_y = self.get_position_in_sudoku(candidate['x_center'], candidate['y_center'])
             self.sudoku_field[idx_y, idx_x] = candidate_nb
+
+            # debug
+            fig, axs = plt.subplots(nrows=1, ncols=2)
+            axs[0].imshow(img_cand, cmap='gray')
+            axs[0].set_title('Candidate, predicted {}'.format(candidate_nb))
+            axs[1].imshow(img_rescaled, cmap='gray')
+            axs[1].set_title('Candidate rescaled')
+            plt.show()
+            # end debug
+
         return None

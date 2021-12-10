@@ -12,11 +12,12 @@ import cv2 as cv
 
 
 def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense_layer_size):
+
     my_model = Sequential()
     my_model.add(Conv2D(nb_filters, kernel_size, padding='valid', input_shape=input_shape, activation=relu))
     my_model.add(Conv2D(2 * nb_filters, kernel_size, activation=relu))
     my_model.add(MaxPool2D(pool_size=pool_size))
-    my_model.add(Conv2D(4 * nb_filters, kernel_size, activation=relu))
+    my_model.add(Conv2D(4 * nb_filters, kernel_size-2, activation=relu))
     my_model.add(MaxPool2D(pool_size=pool_size))
     # my_model.add(Conv2D(8 * nb_filters, kernel_size, activation=relu))
     # my_model.add(MaxPool2D(pool_size=pool_size))
@@ -26,6 +27,21 @@ def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense
     my_model.add(Dense(10, activation=softmax))
     my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(my_model.summary())
+
+    """
+    # pyimage
+    my_model = Sequential()
+    my_model.add(Conv2D(32, (5, 5), padding='same', input_shape=input_shape, activation=relu))
+    my_model.add(MaxPool2D(pool_size=(2, 2)))
+    my_model.add(Conv2D(32, (3, 3), padding='same'))
+    my_model.add(MaxPool2D(pool_size=(2, 2)))
+    my_model.add(Flatten())
+    my_model.add(Dense(64, activation=relu))
+    my_model.add(Dropout(0.5))
+    my_model.add(Dense(10, activation=softmax))
+    my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    print(my_model.summary())
+    """
     """
     # lenet
     my_model = Sequential()
@@ -64,29 +80,31 @@ def load_european_digits_data(path):
     return np.array(x), np.array(y)
 
 
-def load_train_test_data(path_to_european_data):
-    (x_mnist, y_mnist), (_, _) = tf.keras.datasets.mnist.load_data()
-    x_mnist = x_mnist[0:13000]
-    y_mnist = y_mnist[0:13000]
-    x_european, y_european = load_european_digits_data(path_to_european_data)
-    x = np.append(x_mnist, x_european, axis=0)
-    y = np.append(y_mnist, y_european, axis=0)
+def load_train_test_data(path_to_european_data=None):
+    (x_mnist_train, y_mnist_train), (x_mnist_test, y_mnist_test) = tf.keras.datasets.mnist.load_data()
+    if path_to_european_data:
+        x_european, y_european = load_european_digits_data(path_to_european_data)
+        x = np.append(x_mnist_train[0:20000], x_european, axis=0)
+        y = np.append(y_mnist_train[0:20000], y_european, axis=0)
+    else:
+        x = np.append(x_mnist_train, x_mnist_test, axis=0)
+        y = np.append(y_mnist_train, y_mnist_test, axis=0)
+
     x = x.astype("float32") / 255.0
     x = np.expand_dims(x, -1)
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-
+    print('Train size={}, Test size={}'.format(y_train.size, y_test.size))
     y_train = tf.keras.utils.to_categorical(y_train, num_classes=10)
-    # y_test = tf.keras.utils.to_categorical(y_test, num_classes=10)
     return x_train, y_train, x_test, y_test
 
 
 # ----------------- data ---------------------
-x_train, y_train, x_test, y_test = load_train_test_data('EuropeanDigits')
+x_train, y_train, x_test, y_test = load_train_test_data()
 
 
 # ----------------- model ---------------------
 train = True
-modelname = 'NumberClassifierLarge'
+modelname = 'NumberClassifier_MNIST_filters16_kernel553'
 if train:
     nb_filters = 16
     kernel_size = 5
@@ -114,12 +132,12 @@ y_pred = np.array([np.argmax(i) for i in y_pred])
 # ------------------- plot predictions ----------------------------
 offset = 250
 nrows = 3
-ncols = 9
+ncols = 10
 fig, axs = plt.subplots(nrows=nrows, ncols=ncols)
 for row in range(0, nrows):
     for col in range(0, ncols):
-        axs[row, col].imshow(x_test[offset + nrows * row + col, :, :])
-        axs[row, col].set_title('Predicted {}'.format(y_pred[offset + nrows * row + col]))
+        axs[row, col].imshow(x_test[offset + ncols * row + col, :, :])
+        axs[row, col].set_title('Predicted {}'.format(y_pred[offset + ncols * row + col]))
 plt.show()
 
 
