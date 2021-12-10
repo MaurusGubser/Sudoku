@@ -308,14 +308,25 @@ class SudokuReader():
         y_up = max(y - delta_s, 0)
         y_down = min(y + delta_s + s, self.side_sudoku)
         img_cand = self.sudoku_gray[y_up:y_down, x_left:x_right]
+        _, img_thres = cv.threshold(img_cand, 100, 255, cv.THRESH_TOZERO)
+        """
+        # debug
+        fig, axs = plt.subplots(nrows=1, ncols=2)
+        axs[0].imshow(img_cand, cmap='gray')
+        axs[0].set_title('Candidate')
+        axs[1].imshow(img_thres, cmap='gray')
+        axs[1].set_title('Thres')
+        plt.show()
+        # end debug
+        """
         img_cand = cv.resize(img_cand, dsize=(28, 28))
         img_cand = img_cand.astype(np.float32) / 255.0
-        img_cand = 1.0 - img_cand
+        # img_cand = 1.0 - img_cand
+        img_cand = (np.max(img_cand) - img_cand)
+        img_cand = img_cand / np.max(img_cand)
         return img_cand
 
     def get_position_in_sudoku(self, x_center, y_center):
-        #idx_x = int(x_center) // self.width_sudoku
-        #idx_y = int(y_center) // self.height_sudoku
         idx_x = int(x_center) // self.side_sudoku
         idx_y = int(y_center) // self.side_sudoku
         return idx_x, idx_y
@@ -323,22 +334,16 @@ class SudokuReader():
     def fill_in_numbers(self):
         for candidate in self.number_candidates:
             img_cand = self.crop_candidate(candidate['stats'])
-            shift = np.min(img_cand) - 0.001
-            scale = np.max(img_cand - shift) + 0.001
-            img_rescaled = (img_cand - shift) / scale
-            candidate_probs = self.number_classifier.predict(np.reshape(img_rescaled, (1, 28, 28, 1)))
+            candidate_probs = self.number_classifier.predict(np.reshape(img_cand, (1, 28, 28, 1)))
             candidate_nb = np.argmax(candidate_probs)
             candidate['number'] = candidate_nb
             idx_x, idx_y = self.get_position_in_sudoku(candidate['x_center'], candidate['y_center'])
             self.sudoku_field[idx_y, idx_x] = candidate_nb
-
+            """
             # debug
-            fig, axs = plt.subplots(nrows=1, ncols=2)
-            axs[0].imshow(img_cand, cmap='gray')
-            axs[0].set_title('Candidate, predicted {}'.format(candidate_nb))
-            axs[1].imshow(img_rescaled, cmap='gray')
-            axs[1].set_title('Candidate rescaled')
+            plt.imshow(img_cand)
+            plt.title('Prediced nb {}'.format(candidate_nb))
             plt.show()
             # end debug
-
+            """
         return None
