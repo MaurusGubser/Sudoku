@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib
 import cv2 as cv
 import matplotlib.pyplot as plt
-from tensorflow.keras import models
+from tensorflow.keras.models import load_model
 
 matplotlib.use('tkagg')
 
@@ -53,8 +53,8 @@ class SudokuReader:
         self.height_img, self.width_img = self.input_image.shape[0], self.input_image.shape[1]
         return None
 
-    def load_model(self, path_model):
-        self.number_classifier = models.load_model(path_model)
+    def load_trained_model(self, path_model):
+        self.number_classifier = load_model(path_model)
         return None
 
     def show_all_images(self):
@@ -275,7 +275,7 @@ class SudokuReader:
         dist_y = np.max(y_coords) - np.min(y_coords)
         for candidate in self.number_candidates:
             img_cand = self.crop_candidate(candidate['stats'])
-            candidate_probs = self.number_classifier.predict(np.reshape(img_cand, (1, 28, 28, 1)))
+            candidate_probs = self.number_classifier.predict(x=np.reshape(img_cand, (1, 28, 28, 1)))
             candidate_nb = np.argmax(candidate_probs)
             candidate['number'] = candidate_nb
             idx_x, idx_y = self.get_position_in_sudoku(candidate['x_center'], candidate['y_center'], dist_x, dist_y)

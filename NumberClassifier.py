@@ -132,7 +132,7 @@ if train:
     my_model.save(modelname)
 
 else:
-    my_model = tensorflow.keras.models.load_model(modelname)
+    my_model = tensorflow.keras.models.load_trained_model(modelname)
 
 # ----------------- prediction ---------------------
 y_pred = my_model.predict(x_test)
