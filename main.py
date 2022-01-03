@@ -2,8 +2,8 @@ from SudokuSolver import SudokuSolver
 from SudokuReader import SudokuReader
 
 if __name__ == '__main__':
-    path_img = 'Sudoku_Images/Sudoku1.jpeg'
-    path_clf = 'NumberClassifier_v1'
+    path_img = 'Sudoku_Images/Sudoku6.jpeg'
+    path_clf = 'NumberClassifier_v3'
     reader = SudokuReader(path_img=path_img, path_clf=path_clf, debug=False)
     if reader.get_sudoku_field_from_image():
         input_field = reader.sudoku_field

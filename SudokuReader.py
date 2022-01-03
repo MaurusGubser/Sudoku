@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib
 import cv2 as cv
 import matplotlib.pyplot as plt
-from tensorflow.keras.models import load_model
+import tensorflow as tf
+# from tensorflow.keras.models import load_model
 
 matplotlib.use('tkagg')
 
@@ -29,7 +30,7 @@ class SudokuReader:
 
         self.sudoku_field = np.zeros((9, 9), dtype=np.uint8)
         self.number_classifier = None
-        self.load_model(path_clf)
+        self.load_trained_model(path_clf)
 
         self.debug = debug  # show images in debug mode
 
@@ -54,7 +55,8 @@ class SudokuReader:
         return None
 
     def load_trained_model(self, path_model):
-        self.number_classifier = load_model(path_model)
+        self.number_classifier = tf.keras.models.load_model(path_model)
+        # self.number_classifier = tf.saved_model.load(path_model)
         return None
 
     def show_all_images(self):
@@ -245,9 +247,14 @@ class SudokuReader:
         y_up = max(y - delta_s, 0)
         y_down = min(y + delta_s + s, self.side_sudoku)
         img_cand = self.sudoku_gray[y_up:y_down, x_left:x_right]
-        _, img_thres = cv.threshold(img_cand, 140, 255, cv.THRESH_BINARY_INV)
+        # _, img_thres = cv.threshold(img_cand, 140, 255, cv.THRESH_BINARY_INV)
+        # img_thres = cv.resize(img_thres, dsize=(28, 28))
+        # img_thres = img_thres.astype(np.float32) / 255.0
+        img_thres = 255 - img_cand
+        img_thres = img_thres - np.min(img_thres)
+        img_thres = img_thres.astype(np.float32) / np.max(img_thres)
         img_thres = cv.resize(img_thres, dsize=(28, 28))
-        img_thres = img_thres.astype(np.float32) / 255.0
+
         # debug
         if self.debug:
             fig, axs = plt.subplots(nrows=1, ncols=2)

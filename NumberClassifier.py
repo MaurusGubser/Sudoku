@@ -58,7 +58,8 @@ def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense
 
 
 def get_number(path):
-    start = path.rfind('/')
+    # start = path.rfind('/')     # Linux
+    start = path.rfind('\\')    # Windows
     number = int(path[start + 1:])
     return number
 
@@ -91,12 +92,12 @@ def load_train_test_data(path_to_european_data=None):
     (x_mnist_train, y_mnist_train), (x_mnist_test, y_mnist_test) = tf.keras.datasets.mnist.load_data()
     if path_to_european_data:
         x_european, y_european = load_european_digits_data(path_to_european_data)
-        y_ones = y_european[y_european == 1]
-        x_ones = x_european[y_european == 1]
-        x = np.append(x_mnist_train, x_ones, axis=0)
-        y = np.append(y_mnist_train, y_ones, axis=0)
-        # x = np.append(x_mnist_train[0:15000], x_european, axis=0)
-        # y = np.append(y_mnist_train[0:15000], y_european, axis=0)
+        # y_ones = y_european[y_european == 1]
+        # x_ones = x_european[y_european == 1]
+        # x = np.append(x_mnist_train, x_ones, axis=0)
+        # y = np.append(y_mnist_train, y_ones, axis=0)
+        x = np.append(x_mnist_train[0:15000], x_european, axis=0)
+        y = np.append(y_mnist_train[0:15000], y_european, axis=0)
     else:
         x = np.append(x_mnist_train, x_mnist_test, axis=0)
         y = np.append(y_mnist_train, y_mnist_test, axis=0)
@@ -114,7 +115,7 @@ x_train, y_train, x_test, y_test = load_train_test_data('EuropeanDigits')
 
 # ----------------- model ---------------------
 train = True
-modelname = 'NumberClassifier_MNISTplus1_filters16_kernel55'
+modelname = 'NumberClassifier_v3'
 if train:
     nb_filters = 16
     kernel_size = 5
@@ -132,7 +133,7 @@ if train:
     my_model.save(modelname)
 
 else:
-    my_model = tensorflow.keras.models.load_trained_model(modelname)
+    my_model = tensorflow.keras.models.load_model(modelname)
 
 # ----------------- prediction ---------------------
 y_pred = my_model.predict(x_test)
