@@ -12,6 +12,7 @@ import cv2 as cv
 
 
 def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense_layer_size):
+
     my_model = Sequential()
     my_model.add(Conv2D(nb_filters, kernel_size, padding='valid', input_shape=input_shape, activation=relu))
     my_model.add(MaxPool2D(pool_size=pool_size))
@@ -37,6 +38,20 @@ def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense
     my_model.add(Dense(64, activation=relu))
     my_model.add(Dropout(0.5))
     my_model.add(Dense(10, activation=softmax))
+    my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    print(my_model.summary())
+    """
+    """
+    # becominginhuman.ai
+    my_model = Sequential()
+    my_model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', input_shape=(28, 28, 1)))
+    my_model.add(MaxPool2D((2, 2)))
+    my_model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform'))
+    my_model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform'))
+    my_model.add(MaxPool2D((2, 2)))
+    my_model.add(Flatten())
+    my_model.add(Dense(100, activation='relu', kernel_initializer='he_uniform'))
+    my_model.add(Dense(10, activation='softmax'))
     my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(my_model.summary())
     """
@@ -96,8 +111,8 @@ def load_train_test_data(path_to_european_data=None):
         # x_ones = x_european[y_european == 1]
         # x = np.append(x_mnist_train, x_ones, axis=0)
         # y = np.append(y_mnist_train, y_ones, axis=0)
-        x = np.append(x_mnist_train[0:15000], x_european, axis=0)
-        y = np.append(y_mnist_train[0:15000], y_european, axis=0)
+        x = np.append(x_mnist_train[0:10000], x_european, axis=0)
+        y = np.append(y_mnist_train[0:10000], y_european, axis=0)
     else:
         x = np.append(x_mnist_train, x_mnist_test, axis=0)
         y = np.append(y_mnist_train, y_mnist_test, axis=0)
@@ -115,7 +130,7 @@ x_train, y_train, x_test, y_test = load_train_test_data('EuropeanDigits')
 
 # ----------------- model ---------------------
 train = True
-modelname = 'NumberClassifier_v3'
+modelname = 'NumberClassifier_EuropeanDigits'
 if train:
     nb_filters = 16
     kernel_size = 5
@@ -127,8 +142,8 @@ if train:
                                      kernel_size=kernel_size,
                                      pool_size=pool_size,
                                      dense_layer_size=dense_layer_size)
-    batch_size = 1000
-    nb_epochs = 25
+    batch_size = 128
+    nb_epochs = 10
     my_model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs)
     my_model.save(modelname)
 
