@@ -18,8 +18,6 @@ def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense
     my_model.add(MaxPool2D(pool_size=pool_size))
     my_model.add(Conv2D(2 * nb_filters, kernel_size, activation=relu))
     my_model.add(MaxPool2D(pool_size=pool_size))
-    # my_model.add(Conv2D(4 * nb_filters, kernel_size, activation=relu))
-    # my_model.add(MaxPool2D(pool_size=pool_size))
     my_model.add(Flatten())
     my_model.add(Dense(dense_layer_size, activation=relu))
     my_model.add(Dropout(0.5))
@@ -88,10 +86,10 @@ x_train, y_train, x_test, y_test = load_train_test_data('EuropeanDigits')
 
 # ----------------- model ---------------------
 train = True
-modelname = 'NumberClassifier_EuropeanDigits_kernelsize5'
+modelname = 'NumberClassifier_EuropeanDigits_'
 if train:
     nb_filters = 16
-    kernel_size = 7
+    kernel_size = 5
     pool_size = 2
     input_shape = (28, 28, 1)
     dense_layer_size = 128
@@ -101,9 +99,9 @@ if train:
                                      pool_size=pool_size,
                                      dense_layer_size=dense_layer_size)
     batch_size = 128
-    nb_epochs = 10
+    nb_epochs = 20
     my_model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs)
-    my_model.save(modelname)
+    my_model.save(modelname + '.h5')
 
 else:
     my_model = tensorflow.keras.models.load_model(modelname)
