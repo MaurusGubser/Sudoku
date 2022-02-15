@@ -151,7 +151,7 @@ class SudokuReader:
         self.sudoku_img = cv.warpPerspective(self.input_image, invtf, dsize=(self.side_sudoku, self.side_sudoku))
         return None
 
-    def find_contour_sudoku(self, side_length):
+    def find_contour_sudoku(self):
         self.canny_edge_detection()
         contours, _ = cv.findContours(self.input_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         contours = sorted(contours, key=cv.contourArea, reverse=True)
@@ -165,7 +165,8 @@ class SudokuReader:
                 self.height_sudoku = h
                 self.width_sudoku = w
                 source_pts = self.order_rectangle_points(poly_candidate)
-                self.side_sudoku = max(w, h, side_length)
+                # old version self.side_sudoku = max(w, h, side_length) for some fixed side_length
+                self.side_sudoku = max(w, h)
                 self.rectify_image_sudoku(source_pts)
                 self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
                 # debug
@@ -227,7 +228,7 @@ class SudokuReader:
             return False
 
     def is_candidate_size_realistic(self, stats):
-        # assuming 1/20 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
+        # assuming 1/30 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
         # s being the side length of the sudoku square
         area_total = self.side_sudoku * self.side_sudoku
         w = stats[cv.CC_STAT_WIDTH]
@@ -235,7 +236,7 @@ class SudokuReader:
         area_cand = w * h
         if h / w < 1.0 / 3.0 or 3.0 < h / w:
             return False
-        elif area_cand / area_total < 0.0005 or 0.01 < area_cand / area_total:
+        elif area_cand / area_total < 0.0004 or 0.012 < area_cand / area_total:
             return False
         else:
             return True
@@ -304,7 +305,7 @@ class SudokuReader:
         return None
 
     def get_sudoku_field_from_image(self):
-        if self.find_contour_sudoku(side_length=500):
+        if self.find_contour_sudoku():
             self.compute_binary_image(thres=2.3, block_size=5)
             if self.find_candidates():
                 self.fill_in_numbers()
