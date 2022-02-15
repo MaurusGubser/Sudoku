@@ -12,7 +12,6 @@ import cv2 as cv
 
 
 def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense_layer_size):
-
     my_model = Sequential()
     my_model.add(Conv2D(nb_filters, kernel_size, padding='valid', input_shape=input_shape, activation=relu))
     my_model.add(MaxPool2D(pool_size=pool_size))
