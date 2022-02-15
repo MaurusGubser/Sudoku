@@ -67,6 +67,21 @@ class SudokuSolver:
                             return False
         return True
 
+    def find_one_solution(self):
+        if np.min(self.field_sudoku) > 0:
+            self.solutions.append(self.field_sudoku.copy())
+            return True
+        for x in range(0, 9):
+            for y in range(0, 9):
+                if self.field_sudoku[y, x] == 0:
+                    for n in range(1, 10):
+                        if self.check_possibility_entry(x, y, n):
+                            self.field_sudoku[y, x] = n
+                            if self.find_one_solution():
+                                return True
+                            self.field_sudoku[y, x] = 0
+                    return False
+
     def solve_for_all_solutions(self):
         for x in range(0, 9):
             for y in range(0, 9):
@@ -79,5 +94,3 @@ class SudokuSolver:
                     return None
         if np.min(self.field_sudoku) > 0:
             self.solutions.append(self.field_sudoku.copy())
-            return None
-            # self.solutions.append(self.field_sudoku.copy())
