@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 
 
 def print_line(a):
@@ -22,11 +21,6 @@ class SudokuSolver:
             print('Got a sudoku field, which has no solution:')
             self.show_field()
             return False
-
-    def read_field_from_csv(self, path_to_csv):
-        df = pd.read_csv(path_to_csv, header=None)
-        self.field_sudoku = df.to_numpy()
-        return None
 
     def show_field(self):
         print(25 * '-')

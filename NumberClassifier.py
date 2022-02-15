@@ -12,13 +12,12 @@ import cv2 as cv
 
 
 def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense_layer_size):
+
     my_model = Sequential()
     my_model.add(Conv2D(nb_filters, kernel_size, padding='valid', input_shape=input_shape, activation=relu))
     my_model.add(MaxPool2D(pool_size=pool_size))
     my_model.add(Conv2D(2 * nb_filters, kernel_size, activation=relu))
     my_model.add(MaxPool2D(pool_size=pool_size))
-    # my_model.add(Conv2D(4 * nb_filters, kernel_size, activation=relu))
-    # my_model.add(MaxPool2D(pool_size=pool_size))
     my_model.add(Flatten())
     my_model.add(Dense(dense_layer_size, activation=relu))
     my_model.add(Dropout(0.5))
@@ -26,39 +25,12 @@ def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense
     my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(my_model.summary())
 
-    """
-    # pyimage
-    my_model = Sequential()
-    my_model.add(Conv2D(32, (5, 5), padding='same', input_shape=input_shape, activation=relu))
-    my_model.add(MaxPool2D(pool_size=(2, 2)))
-    my_model.add(Conv2D(32, (3, 3), padding='same'))
-    my_model.add(MaxPool2D(pool_size=(2, 2)))
-    my_model.add(Flatten())
-    my_model.add(Dense(64, activation=relu))
-    my_model.add(Dropout(0.5))
-    my_model.add(Dense(10, activation=softmax))
-    my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    print(my_model.summary())
-    """
-    """
-    # lenet
-    my_model = Sequential()
-    my_model.add(Conv2D(6, 5, padding='valid', input_shape=input_shape, activation=relu))
-    my_model.add(MaxPool2D(pool_size=2))
-    my_model.add(Conv2D(16, 5, activation=relu))
-    my_model.add(MaxPool2D(pool_size=2))
-    my_model.add(Flatten())
-    my_model.add(Dense(120, activation=relu))
-    my_model.add(Dense(84, activation=relu))
-    my_model.add(Dense(10, activation=softmax))
-    my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    print(my_model.summary())
-    """
     return my_model
 
 
 def get_number(path):
-    start = path.rfind('/')
+    # start = path.rfind('/')     # Linux
+    start = path.rfind('\\')    # Windows
     number = int(path[start + 1:])
     return number
 
@@ -91,12 +63,12 @@ def load_train_test_data(path_to_european_data=None):
     (x_mnist_train, y_mnist_train), (x_mnist_test, y_mnist_test) = tf.keras.datasets.mnist.load_data()
     if path_to_european_data:
         x_european, y_european = load_european_digits_data(path_to_european_data)
-        y_ones = y_european[y_european == 1]
-        x_ones = x_european[y_european == 1]
-        x = np.append(x_mnist_train, x_ones, axis=0)
-        y = np.append(y_mnist_train, y_ones, axis=0)
-        # x = np.append(x_mnist_train[0:15000], x_european, axis=0)
-        # y = np.append(y_mnist_train[0:15000], y_european, axis=0)
+        # y_ones = y_european[y_european == 1]
+        # x_ones = x_european[y_european == 1]
+        # x = np.append(x_mnist_train, x_ones, axis=0)
+        # y = np.append(y_mnist_train, y_ones, axis=0)
+        x = np.append(x_mnist_train[0:10000], x_european, axis=0)
+        y = np.append(y_mnist_train[0:10000], y_european, axis=0)
     else:
         x = np.append(x_mnist_train, x_mnist_test, axis=0)
         y = np.append(y_mnist_train, y_mnist_test, axis=0)
@@ -114,7 +86,7 @@ x_train, y_train, x_test, y_test = load_train_test_data('EuropeanDigits')
 
 # ----------------- model ---------------------
 train = True
-modelname = 'NumberClassifier_MNISTplus1_filters16_kernel55'
+modelname = 'NumberClassifier_EuropeanDigits_'
 if train:
     nb_filters = 16
     kernel_size = 5
@@ -126,10 +98,10 @@ if train:
                                      kernel_size=kernel_size,
                                      pool_size=pool_size,
                                      dense_layer_size=dense_layer_size)
-    batch_size = 1000
-    nb_epochs = 25
+    batch_size = 128
+    nb_epochs = 20
     my_model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs)
-    my_model.save(modelname)
+    my_model.save(modelname + '.h5')
 
 else:
     my_model = tensorflow.keras.models.load_model(modelname)
