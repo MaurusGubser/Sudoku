@@ -1,12 +1,6 @@
 import numpy as np
 
 
-def print_line(a):
-    assert a.size == 9, 'Array must have nine entries.'
-    print('|', a[0], a[1], a[2], '|', a[3], a[4], a[5], '|', a[6], a[7], a[8], '|')
-    return None
-
-
 class SudokuSolver:
     def __init__(self):
         self.field_sudoku = np.zeros((9, 9), dtype=np.int)
@@ -22,11 +16,17 @@ class SudokuSolver:
             self.show_field()
             return False
 
+    @staticmethod
+    def print_line(a):
+        assert a.size == 9, 'Array must have nine entries.'
+        print('|', a[0], a[1], a[2], '|', a[3], a[4], a[5], '|', a[6], a[7], a[8], '|')
+        return None
+
     def show_field(self):
         print(25 * '-')
         for box in range(0, 3):
             for row in range(0, 3):
-                print_line(self.field_sudoku[box * 3 + row])
+                self.print_line(self.field_sudoku[box * 3 + row])
             print(25 * '-')
         print('\n')
         return None
