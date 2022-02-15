@@ -136,6 +136,9 @@ class SudokuReader:
         input_gray = cv.cvtColor(self.input_image, cv.COLOR_BGR2GRAY)
         input_blur = cv.GaussianBlur(input_gray, ksize=(kernel_size, kernel_size), sigmaX=1.0)
         self.input_edges = cv.Canny(input_blur, thres_low, thres_upper)
+        # closing to see contour when sudoku surrounding is black
+        kernel = cv.getStructuringElement(cv.MORPH_RECT, ksize=(12, 12))
+        self.input_edges = cv.morphologyEx(self.input_edges, cv.MORPH_CLOSE, kernel)
         return None
 
     def rectify_image_sudoku(self, source_pts):
