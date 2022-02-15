@@ -79,3 +79,5 @@ class SudokuSolver:
                     return None
         if np.min(self.field_sudoku) > 0:
             self.solutions.append(self.field_sudoku.copy())
+            return None
+            # self.solutions.append(self.field_sudoku.copy())
