@@ -9,6 +9,9 @@ class SudokuSolver:
     def set_sudoku_field(self, field_input):
         assert field_input.shape == (9, 9), 'Sudoku field has to be of shape (9, 9).'
         self.field_sudoku = field_input
+        if self.too_few_entries():
+            print('Sudoku has too few entries to be solved efficiently.')
+            return False
         if self.is_field_possible():
             return True
         else:
@@ -45,6 +48,13 @@ class SudokuSolver:
                 if self.field_sudoku[j, i] == number:
                     return False
         return True
+
+    def too_few_entries(self):
+        nb_non_zero_entries = np.sum(self.field_sudoku>0)
+        if nb_non_zero_entries <= 20:
+            return True
+        else:
+            return False
 
     def is_field_possible(self):
         for col in range(0, 9):
