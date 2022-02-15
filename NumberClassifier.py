@@ -27,48 +27,6 @@ def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense
     my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(my_model.summary())
 
-    """
-    # pyimage
-    my_model = Sequential()
-    my_model.add(Conv2D(32, (5, 5), padding='same', input_shape=input_shape, activation=relu))
-    my_model.add(MaxPool2D(pool_size=(2, 2)))
-    my_model.add(Conv2D(32, (3, 3), padding='same'))
-    my_model.add(MaxPool2D(pool_size=(2, 2)))
-    my_model.add(Flatten())
-    my_model.add(Dense(64, activation=relu))
-    my_model.add(Dropout(0.5))
-    my_model.add(Dense(10, activation=softmax))
-    my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    print(my_model.summary())
-    """
-    """
-    # becominginhuman.ai
-    my_model = Sequential()
-    my_model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', input_shape=(28, 28, 1)))
-    my_model.add(MaxPool2D((2, 2)))
-    my_model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform'))
-    my_model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform'))
-    my_model.add(MaxPool2D((2, 2)))
-    my_model.add(Flatten())
-    my_model.add(Dense(100, activation='relu', kernel_initializer='he_uniform'))
-    my_model.add(Dense(10, activation='softmax'))
-    my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    print(my_model.summary())
-    """
-    """
-    # lenet
-    my_model = Sequential()
-    my_model.add(Conv2D(6, 5, padding='valid', input_shape=input_shape, activation=relu))
-    my_model.add(MaxPool2D(pool_size=2))
-    my_model.add(Conv2D(16, 5, activation=relu))
-    my_model.add(MaxPool2D(pool_size=2))
-    my_model.add(Flatten())
-    my_model.add(Dense(120, activation=relu))
-    my_model.add(Dense(84, activation=relu))
-    my_model.add(Dense(10, activation=softmax))
-    my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    print(my_model.summary())
-    """
     return my_model
 
 
@@ -130,10 +88,10 @@ x_train, y_train, x_test, y_test = load_train_test_data('EuropeanDigits')
 
 # ----------------- model ---------------------
 train = True
-modelname = 'NumberClassifier_EuropeanDigits'
+modelname = 'NumberClassifier_EuropeanDigits_kernelsize5'
 if train:
     nb_filters = 16
-    kernel_size = 5
+    kernel_size = 7
     pool_size = 2
     input_shape = (28, 28, 1)
     dense_layer_size = 128
