@@ -111,6 +111,18 @@ class SudokuReader:
         plt.show()
         return None
 
+    def save_solution_on_image(self, solution, path):
+        drawing = self.sudoku_img.copy()
+        step = self.side_sudoku // 9
+        delta = self.side_sudoku // 36
+
+        for row in range(0, 9):
+            for col in range(0, 9):
+                drawing = cv.putText(drawing, str(solution[row, col]), (col * step + delta, (row + 1) * step - delta),
+                                     fontFace=cv.FONT_HERSHEY_PLAIN, fontScale=3, color=(255, 0, 0), thickness=3)
+        cv.imwrite(path, drawing)
+        return None
+
     def compute_binary_image(self, gaussian_kernel_size=5, thres=1.0, block_size=5):
         blur = cv.GaussianBlur(self.sudoku_gray, (gaussian_kernel_size, gaussian_kernel_size), sigmaX=3.0)
         self.sudoku_binary = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV,
@@ -308,7 +320,6 @@ class SudokuReader:
             self.compute_binary_image(thres=2.3, block_size=5)
             if self.find_candidates():
                 self.fill_in_numbers()
-                self.show_candidates()
                 if self.debug:
                     self.show_candidates()
                 return True
