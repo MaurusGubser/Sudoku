@@ -4,7 +4,6 @@ import matplotlib
 import cv2 as cv
 import matplotlib.pyplot as plt
 import tensorflow as tf
-# from tensorflow.keras.models import load_model
 
 matplotlib.use('tkagg')
 
@@ -18,14 +17,13 @@ def normalize_img(img):
 
 
 class SudokuReader:
-    def __init__(self, path_img, path_clf, debug=False):
+    def __init__(self, path_img, path_clf, show_steps=False):
         self.input_image = np.empty((1, 1, 3), dtype=np.uint8)
         self.input_edges = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_img = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_gray = np.empty((1, 1), dtype=np.uint8)
         self.sudoku_binary = np.empty((1, 1), dtype=np.uint8)
         self.lines = np.empty((1, 1), dtype=np.uint8)
-        self.read_image_from_source(path_img)
 
         self.height_img = 0  # nb rows input image
         self.width_img = 0  # nb columns input image
@@ -35,12 +33,12 @@ class SudokuReader:
         self.width_sudoku = 0  # nb columns sudoku image
         self.side_sudoku = 0  # nb rows = nb cols in rectified image
         self.number_candidates = []
-
         self.sudoku_field = np.zeros((9, 9), dtype=np.uint8)
         self.number_classifier = None
         self.load_trained_model(path_clf)
+        self.show_steps = show_steps  # show images for single steps
 
-        self.debug = debug  # show images in debug mode
+        self.read_image_from_source(path_img)
 
     @staticmethod
     def order_rectangle_points(poly_candidate):
@@ -57,7 +55,7 @@ class SudokuReader:
     def read_image_from_source(self, path_src):
         self.input_image = cv.imread(path_src)
         long_side = max(self.input_image.shape[0], self.input_image.shape[1])
-        scale_factor = 800 / long_side
+        scale_factor = 1000 / long_side  # longer side of img should have at most 1000 pxl
         self.input_image = cv.resize(self.input_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor)
         self.height_img, self.width_img = self.input_image.shape[0], self.input_image.shape[1]
         return None
@@ -123,28 +121,28 @@ class SudokuReader:
         cv.imwrite(path, drawing)
         return None
 
-    def compute_binary_image(self, gaussian_kernel_size=5, thres=1.0, block_size=5):
+    def get_sudoku_binary(self, gaussian_kernel_size=5, thres=1.0, block_size=5):
         blur = cv.GaussianBlur(self.sudoku_gray, (gaussian_kernel_size, gaussian_kernel_size), sigmaX=3.0)
         self.sudoku_binary = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV,
                                                   blockSize=block_size, C=thres)
         return None
 
-    def otsu_thresholding(self, kernel_size=7):
+    def otsu_thres_sudoku(self, kernel_size=7):
         blur = cv.GaussianBlur(self.sudoku_gray, (kernel_size, kernel_size), 0)
         _, self.sudoku_binary = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU)
         return None
 
-    def open_image(self, kernel_shape=cv.MORPH_RECT, kernel_size=3):
+    def opening_sudoku(self, kernel_shape=cv.MORPH_RECT, kernel_size=3):
         kernel = cv.getStructuringElement(kernel_shape, (kernel_size, kernel_size))
         self.sudoku_binary = cv.morphologyEx(self.sudoku_binary, cv.MORPH_OPEN, kernel)
         return None
 
-    def close_image(self, kernel_shape=cv.MORPH_RECT, kernel_size=5):
+    def closing_sudoku(self, kernel_shape=cv.MORPH_RECT, kernel_size=5):
         kernel = cv.getStructuringElement(kernel_shape, (kernel_size, kernel_size))
         self.sudoku_binary = cv.morphologyEx(self.sudoku_binary, cv.MORPH_CLOSE, kernel)
         return None
 
-    def canny_edge_detection(self, kernel_size=5, thres_low=100, thres_upper=200):
+    def get_input_image_edges(self, kernel_size=5, thres_low=100, thres_upper=200):
         input_gray = cv.cvtColor(self.input_image, cv.COLOR_BGR2GRAY)
         input_blur = cv.GaussianBlur(input_gray, ksize=(kernel_size, kernel_size), sigmaX=1.0)
         self.input_edges = cv.Canny(input_blur, thres_low, thres_upper)
@@ -153,7 +151,7 @@ class SudokuReader:
         self.input_edges = cv.morphologyEx(self.input_edges, cv.MORPH_CLOSE, kernel)
         return None
 
-    def rectify_image_sudoku(self, source_pts):
+    def rectify_sudoku_image(self, source_pts):
         source_pts = np.array(source_pts, dtype=np.float32)
         a = np.array([0, 0])
         b = np.array([0, self.side_sudoku])
@@ -166,12 +164,13 @@ class SudokuReader:
         return None
 
     def find_contour_sudoku(self):
-        self.canny_edge_detection()
+        self.get_input_image_edges()
         contours, _ = cv.findContours(self.input_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         contours = sorted(contours, key=cv.contourArea, reverse=True)
         for candidate in contours:
             perimeter_candidate = cv.arcLength(candidate, True)
             poly_candidate = cv.approxPolyDP(candidate, epsilon=0.05 * perimeter_candidate, closed=True)
+            # if quadrilateral is found, crop corresponding image
             if len(poly_candidate) == 4:
                 x0, y0, w, h = [int(i) for i in cv.boundingRect(poly_candidate)]
                 self.x0_sudoku = x0
@@ -181,10 +180,10 @@ class SudokuReader:
                 source_pts = self.order_rectangle_points(poly_candidate)
                 # old version self.side_sudoku = max(w, h, side_length) for some fixed side_length
                 self.side_sudoku = max(w, h)
-                self.rectify_image_sudoku(source_pts)
+                self.rectify_sudoku_image(source_pts)
                 self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
-                # debug
-                if self.debug:
+                # show steps
+                if self.show_steps:
                     output = self.input_image.copy()
                     fig, axs = plt.subplots(nrows=1, ncols=2)
                     for i in range(0, 4):
@@ -194,18 +193,18 @@ class SudokuReader:
                     axs[1].imshow(self.sudoku_img)
                     axs[1].set_title('Cropped sudoku contour')
                     plt.show()
-                # debug end
+                # show steps end
                 return True
         print('No contour found which corresponds to a possible sudoku square.')
         return False
 
     def find_candidates(self):
-        self.otsu_thresholding()
-        self.close_image()
+        self.otsu_thres_sudoku()
+        self.closing_sudoku()
         nb_labels, labels, stats, centroids = cv.connectedComponentsWithStats(self.sudoku_binary, connectivity=8,
                                                                               ltype=cv.CV_32S)
-        # debug
-        if self.debug:
+        # show steps
+        if self.show_steps:
             fig, axs = plt.subplots(nrows=1, ncols=2)
             axs[0].imshow(self.sudoku_binary, cmap='gray')
             axs[0].set_title('Binary image')
@@ -227,7 +226,7 @@ class SudokuReader:
             plt.imshow(output)
             plt.title('Candidates found')
             plt.show()
-        # end debug
+        # show steps end
         for i in range(0, nb_labels):
             if self.is_candidate_size_realistic(stats[i]):
                 self.number_candidates.append({'stats': stats[i],
@@ -242,15 +241,15 @@ class SudokuReader:
             return False
 
     def is_candidate_size_realistic(self, stats):
-        # assuming 1/30 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
+        # assuming 1/20 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
         # s being the side length of the sudoku square
         area_total = self.side_sudoku * self.side_sudoku
         w = stats[cv.CC_STAT_WIDTH]
         h = stats[cv.CC_STAT_HEIGHT]
         area_cand = w * h
-        if h / w < 1.0 / 3.0 or 3.0 < h / w:
+        if h / w < 1.0 / 1.1 or 3.0 < h / w:
             return False
-        elif area_cand / area_total < 0.0004 or 0.012 < area_cand / area_total:
+        elif area_cand / area_total < 0.000617 or 0.0123 < area_cand / area_total:
             return False
         else:
             return True
@@ -269,22 +268,11 @@ class SudokuReader:
         x_right = min(x + delta_s + s, self.side_sudoku)
         y_up = max(y - delta_s, 0)
         y_down = min(y + delta_s + s, self.side_sudoku)
-        img_cand = self.sudoku_gray[y_up:y_down, x_left:x_right]
-        img_thres = 255 - img_cand
-        img_thres = img_thres - np.min(img_thres)
-        img_thres = img_thres.astype(np.float32) / np.max(img_thres)
-        img_thres = cv.resize(img_thres, dsize=(28, 28))
 
-        # debug
-        if self.debug:
-            fig, axs = plt.subplots(nrows=1, ncols=2)
-            axs[0].imshow(img_cand, cmap='gray')
-            axs[0].set_title('Candidate')
-            axs[1].imshow(img_thres, cmap='gray')
-            axs[1].set_title('Thres opencv')
-            plt.show()
-        # end debug
-        return img_thres
+        img_cand = self.sudoku_gray[y_up:y_down, x_left:x_right]
+        img_cand = img_cand.astype('float32') / 255.0
+        img_cand = cv.resize(img_cand, dsize=(48, 48))
+        return img_cand
 
     def get_position_in_sudoku(self, x_center, y_center, dist_x, dist_y):
         # check if contour shape might be much larger than sudoku field, which can lead to mapping error
@@ -302,25 +290,25 @@ class SudokuReader:
         dist_y = np.max(y_coords) - np.min(y_coords)
         for candidate in self.number_candidates:
             img_cand = self.crop_candidate(candidate['stats'])
-            candidate_probs = self.number_classifier.predict(x=np.reshape(img_cand, (1, 28, 28, 1)))
+            candidate_probs = self.number_classifier.predict(x=np.reshape(img_cand, (1, 48, 48, 1)))
             candidate_nb = np.argmax(candidate_probs)
             candidate['number'] = candidate_nb
             idx_x, idx_y = self.get_position_in_sudoku(candidate['x_center'], candidate['y_center'], dist_x, dist_y)
             self.sudoku_field[idx_y, idx_x] = candidate_nb
-            # debug
-            if self.debug:
+            # show steps
+            if self.show_steps:
                 plt.imshow(img_cand)
                 plt.title('Predicted nb {}'.format(candidate_nb))
                 plt.show()
-            # end debug
+            # show steps end
         return None
 
     def get_sudoku_field_from_image(self):
         if self.find_contour_sudoku():
-            self.compute_binary_image(thres=2.3, block_size=5)
+            self.get_sudoku_binary(thres=2.3, block_size=5)
             if self.find_candidates():
                 self.fill_in_numbers()
-                if self.debug:
+                if self.show_steps:
                     self.show_candidates()
                 return True
             else:
