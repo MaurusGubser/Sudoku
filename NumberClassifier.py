@@ -63,15 +63,6 @@ def load_european_digits_data(path):
     return np.array(x), np.array(y)
 
 
-def normalize_imgs(x):
-    x = x.astype('float32')
-    for i in range(0, x.shape[0]):
-        shift = np.min(x[i])
-        scale = np.max(x[i] - shift)
-        x[i] = (x[i] - shift) / scale
-    return x
-
-
 def load_train_test_data(path_to_european_data=None):
     (x_mnist_train, y_mnist_train), (x_mnist_test, y_mnist_test) = tf.keras.datasets.mnist.load_data()
     if path_to_european_data:
