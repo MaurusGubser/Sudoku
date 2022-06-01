@@ -34,7 +34,7 @@ class SudokuSolver:
         print('\n')
         return None
 
-    def check_possibility_entry(self, x, y, number):
+    def is_entry_allowed(self, x, y, number):
         for row in range(0, 9):
             if self.field_sudoku[row, x] == number:
                 return False
@@ -85,21 +85,21 @@ class SudokuSolver:
             for y in range(0, 9):
                 if self.field_sudoku[y, x] == 0:
                     for n in range(1, 10):
-                        if self.check_possibility_entry(x, y, n):
+                        if self.is_entry_allowed(x, y, n):
                             self.field_sudoku[y, x] = n
                             if self.find_one_solution():
                                 return True
                             self.field_sudoku[y, x] = 0
                     return False
 
-    def solve_for_all_solutions(self):
+    def find_all_solutions(self):
         for x in range(0, 9):
             for y in range(0, 9):
                 if self.field_sudoku[y, x] == 0:
                     for n in range(1, 10):
-                        if self.check_possibility_entry(x, y, n):
+                        if self.is_entry_allowed(x, y, n):
                             self.field_sudoku[y, x] = n
-                            self.solve_for_all_solutions()
+                            self.find_all_solutions()
                             self.field_sudoku[y, x] = 0
                     return None
         if np.min(self.field_sudoku) > 0:
