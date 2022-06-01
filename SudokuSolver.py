@@ -50,8 +50,8 @@ class SudokuSolver:
         return True
 
     def too_few_entries(self):
-        nb_non_zero_entries = np.sum(self.field_sudoku>0)
-        if nb_non_zero_entries <= 20:
+        nb_non_zero_entries = np.sum(self.field_sudoku > 0)
+        if nb_non_zero_entries <= 18:
             return True
         else:
             return False
