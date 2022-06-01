@@ -12,6 +12,21 @@ import cv2 as cv
 
 
 def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense_layer_size):
+    """
+    Define layers of neural network
+    :param nb_filters: int
+        number of filters to use in convolutional layers, doubled in each step
+    :param input_shape: tuple of int
+        integers, which describe the shape of the input
+    :param kernel_size: int or (int, int)
+        integer or tuple of integers, which describe the shape of the filter
+    :param pool_size: int
+        integer, which describe the pool_size for convolutional layer
+    :param dense_layer_size: int
+        integer, which sets the size of the dense layer
+    :return: Sequential
+        a sequential keras CNN model
+    """
     my_model = Sequential()
     my_model.add(Conv2D(nb_filters, kernel_size, padding='valid', input_shape=input_shape, activation=relu))
     my_model.add(MaxPool2D(pool_size=pool_size))
@@ -23,13 +38,12 @@ def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense
     my_model.add(Dense(10, activation=softmax))
     my_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(my_model.summary())
-
     return my_model
 
 
-def get_number(path):
-    # start = path.rfind('/')     # Linux
-    start = path.rfind('\\')    # Windows
+def get_number_from_path(path):
+    start = path.rfind('/')     # Linux
+    # start = path.rfind('\\')    # Windows
     number = int(path[start + 1:])
     return number
 
@@ -39,7 +53,7 @@ def load_european_digits_data(path):
     y = []
     for root, dirs, files in os.walk(path):
         if not dirs:
-            nb = get_number(root)
+            nb = get_number_from_path(root)
             for file in files:
                 path_img = root + '/' + file
                 img = 255 - cv.imread(path_img, cv.IMREAD_GRAYSCALE)
@@ -62,19 +76,19 @@ def load_train_test_data(path_to_european_data=None):
     (x_mnist_train, y_mnist_train), (x_mnist_test, y_mnist_test) = tf.keras.datasets.mnist.load_data()
     if path_to_european_data:
         x_european, y_european = load_european_digits_data(path_to_european_data)
+        # if only 1 should be taken from european digits
         # y_ones = y_european[y_european == 1]
         # x_ones = x_european[y_european == 1]
         # x = np.append(x_mnist_train, x_ones, axis=0)
         # y = np.append(y_mnist_train, y_ones, axis=0)
-        x = np.append(x_mnist_train[0:10000], x_european, axis=0)
-        y = np.append(y_mnist_train[0:10000], y_european, axis=0)
+        x = np.append(x_mnist_train[0:30000], x_european, axis=0)
+        y = np.append(y_mnist_train[0:30000], y_european, axis=0)
     else:
         x = np.append(x_mnist_train, x_mnist_test, axis=0)
         y = np.append(y_mnist_train, y_mnist_test, axis=0)
-    x = normalize_imgs(x)
-    # x = x.astype("float32") / 255.0
+    x = x.astype("float32") / 255.0
     x = np.expand_dims(x, -1)
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
     print('Train size={}, Test size={}'.format(y_train.size, y_test.size))
     y_train = tf.keras.utils.to_categorical(y_train, num_classes=10)
     return x_train, y_train, x_test, y_test
@@ -85,7 +99,7 @@ x_train, y_train, x_test, y_test = load_train_test_data('EuropeanDigits')
 
 # ----------------- model ---------------------
 train = True
-modelname = 'NumberClassifier_EuropeanDigits_'
+modelname = 'NumberClassifier_'
 if train:
     nb_filters = 16
     kernel_size = 5
@@ -97,7 +111,7 @@ if train:
                                      kernel_size=kernel_size,
                                      pool_size=pool_size,
                                      dense_layer_size=dense_layer_size)
-    batch_size = 128
+    batch_size = 1000
     nb_epochs = 20
     my_model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs)
     my_model.save(modelname + '.h5')
