@@ -5,3 +5,11 @@
 /venv/
 /NumberClassifier_v1/
 /NumberClassifier_EuropeanDigits/
+/NumberClassifier_nbfilter16_kernel3_dense128.h5
+/NumberClassifier_nbfilter32_kernel5_dense128.h5
+/NumberClassifier_pyimage.h5
+/NumberClassifier_pyimage_EuropeanDigits.h5
+/NumberClassifier_pyimage_EuropeanDigits_50000.h5
+/NumberClassifier_pyimage_EuropeanDigits_kernel5to3.h5
+/NumberClassifier_pyimage_EuropeanDigits_kernel7to5.h5
+/NumberClassifier_v2/
