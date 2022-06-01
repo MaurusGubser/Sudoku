@@ -8,14 +8,6 @@ import tensorflow as tf
 matplotlib.use('tkagg')
 
 
-def normalize_img(img):
-    img = img.astype('float32')
-    shift = np.min(img)
-    scale = np.max(img - shift)
-    img = (img - shift) / scale
-    return img
-
-
 class SudokuReader:
     def __init__(self, path_img, path_clf, show_steps=False):
         self.input_image = np.empty((1, 1, 3), dtype=np.uint8)
