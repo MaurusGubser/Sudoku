@@ -3,7 +3,7 @@ from SudokuReader import SudokuReader
 
 
 def read_and_solve_sudoku(path_sudoku_img):
-    path_clf = 'NumberClassifier_EuropeanDigits.h5'
+    path_clf = 'model-OCR.h5'
     reader = SudokuReader(path_img=path_sudoku_img, path_clf=path_clf, debug=False)
     if reader.get_sudoku_field_from_image():
         input_field = reader.sudoku_field
