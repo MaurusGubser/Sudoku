@@ -11,10 +11,11 @@ def read_and_solve_sudoku(path_sudoku_img):
         if solver.set_sudoku_field(input_field):
             if solver.find_one_solution():
                 print('Found a solution.')
-                reader.save_solution_on_image(solver.field_sudoku, path_sudoku_img)
+                reader.show_solution_on_sudoku(solver.solutions[0])
+                # reader.save_solution_on_image(solver.field_sudoku, path_sudoku_img)
             else:
                 raise RuntimeError('Did not find a solution')
     return None
 
-path = 'Sudoku_Images/Sudoku2.png'
+path = 'Sudoku_Images/Test3.jpg'
 read_and_solve_sudoku(path)

@@ -23,7 +23,7 @@ class SudokuReader:
         self.y0_sudoku = 0  # y coord of upper left pt of sudoku in input image
         self.height_sudoku = 0  # nb rows sudoku image
         self.width_sudoku = 0  # nb columns sudoku image
-        self.side_sudoku = 0  # nb rows = nb cols in rectified image
+        self.side_length_sudoku = 0  # nb rows = nb cols in rectified image
         self.number_candidates = []
         self.sudoku_field = np.zeros((9, 9), dtype=np.uint8)
         self.number_classifier = None
@@ -86,8 +86,8 @@ class SudokuReader:
 
     def show_solution_on_sudoku(self, field):
         drawing = self.sudoku_img.copy()
-        step = self.side_sudoku // 9
-        delta = self.side_sudoku // 36
+        step = self.side_length_sudoku // 9
+        delta = self.side_length_sudoku // 36
 
         for row in range(0, 9):
             for col in range(0, 9):
@@ -103,8 +103,8 @@ class SudokuReader:
 
     def save_solution_on_image(self, solution, path):
         drawing = self.sudoku_img.copy()
-        step = self.side_sudoku // 9
-        delta = self.side_sudoku // 36
+        step = self.side_length_sudoku // 9
+        delta = self.side_length_sudoku // 36
 
         for row in range(0, 9):
             for col in range(0, 9):
@@ -146,13 +146,13 @@ class SudokuReader:
     def rectify_sudoku_image(self, source_pts):
         source_pts = np.array(source_pts, dtype=np.float32)
         a = np.array([0, 0])
-        b = np.array([0, self.side_sudoku])
-        c = np.array([self.side_sudoku, self.side_sudoku])
-        d = np.array([self.side_sudoku, 0])
+        b = np.array([0, self.side_length_sudoku])
+        c = np.array([self.side_length_sudoku, self.side_length_sudoku])
+        d = np.array([self.side_length_sudoku, 0])
         destination_pts = np.array([a, b, c, d], dtype=np.float32)
 
         invtf = cv.getPerspectiveTransform(source_pts, destination_pts)
-        self.sudoku_img = cv.warpPerspective(self.input_image, invtf, dsize=(self.side_sudoku, self.side_sudoku))
+        self.sudoku_img = cv.warpPerspective(self.input_image, invtf, dsize=(self.side_length_sudoku, self.side_length_sudoku))
         return None
 
     def find_contour_sudoku(self):
@@ -170,11 +170,9 @@ class SudokuReader:
                 self.height_sudoku = h
                 self.width_sudoku = w
                 source_pts = self.order_rectangle_points(poly_candidate)
-                # old version self.side_sudoku = max(w, h, side_length) for some fixed side_length
-                self.side_sudoku = max(w, h)
+                self.side_length_sudoku = max(w, h)
                 self.rectify_sudoku_image(source_pts)
                 self.sudoku_gray = cv.cvtColor(self.sudoku_img, cv.COLOR_BGR2GRAY)
-                # show steps
                 if self.show_steps:
                     output = self.input_image.copy()
                     fig, axs = plt.subplots(nrows=1, ncols=2)
@@ -185,7 +183,6 @@ class SudokuReader:
                     axs[1].imshow(self.sudoku_img)
                     axs[1].set_title('Cropped sudoku contour')
                     plt.show()
-                # show steps end
                 return True
         print('No contour found which corresponds to a possible sudoku square.')
         return False
@@ -195,7 +192,6 @@ class SudokuReader:
         self.closing_sudoku()
         nb_labels, labels, stats, centroids = cv.connectedComponentsWithStats(self.sudoku_binary, connectivity=8,
                                                                               ltype=cv.CV_32S)
-        # show steps
         if self.show_steps:
             fig, axs = plt.subplots(nrows=1, ncols=2)
             axs[0].imshow(self.sudoku_binary, cmap='gray')
@@ -218,7 +214,6 @@ class SudokuReader:
             plt.imshow(output)
             plt.title('Candidates found')
             plt.show()
-        # show steps end
         for i in range(0, nb_labels):
             if self.is_candidate_size_realistic(stats[i]):
                 self.number_candidates.append({'stats': stats[i],
@@ -233,15 +228,20 @@ class SudokuReader:
             return False
 
     def is_candidate_size_realistic(self, stats):
-        # assuming 1/20 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
-        # s being the side length of the sudoku square
-        area_total = self.side_sudoku * self.side_sudoku
-        w = stats[cv.CC_STAT_WIDTH]
-        h = stats[cv.CC_STAT_HEIGHT]
-        area_cand = w * h
-        if h / w < 1.0 / 1.1 or 3.0 < h / w:
+        area_total = self.side_length_sudoku * self.side_length_sudoku
+        width_candidate = stats[cv.CC_STAT_WIDTH]
+        height_candidate = stats[cv.CC_STAT_HEIGHT]
+        area_cand = width_candidate * height_candidate
+        if height_candidate / width_candidate < 1.0 / 1.1 or 3.0 < height_candidate / width_candidate:
+            # for the surrounding rectangle of the candidate, we assume that
+            # the height should at most be marginally smaller than the width, usually larger
+            # and the height should not be 3x larger than the width
             return False
-        elif area_cand / area_total < 0.000617 or 0.0123 < area_cand / area_total:
+        elif area_cand / area_total < 1 / 20 * 1 / 81 or 1 / 81 < area_cand / area_total:
+            # a sudoku field has 9*9=81 squares, we make the assumption
+            # 1/20 * 1/81 * s**2 <= A_cand <= 1/81 * s**2
+            # s being the side length of the sudoku square
+            # and A_cand being the area of the surrounding rectangle of the candidate
             return False
         else:
             return True
@@ -251,27 +251,31 @@ class SudokuReader:
         y = stats[cv.CC_STAT_TOP]
         w = stats[cv.CC_STAT_WIDTH]
         h = stats[cv.CC_STAT_HEIGHT]
+        x_left, x_right, y_down, y_up = self.get_square(h, w, x, y)
+        img_candidate = self.sudoku_gray[y_up:y_down, x_left:x_right]
+        img_candidate = img_candidate.astype('float32') / 255.0
+        img_candidate = cv.resize(img_candidate, dsize=(48, 48))
+        return img_candidate
+
+    def get_square(self, h, w, x, y):
+        # set x, y such that (x,y), (x+w, y), (x+w, y+h), (x, y+h) is square
         s = max(w, h)
         x = x + w // 2 - s // 2
         y = y + h // 2 - s // 2
         # adding 25 percent of length at each side (heuristic value)
         delta_s = s // 4
         x_left = max(x - delta_s, 0)
-        x_right = min(x + delta_s + s, self.side_sudoku)
+        x_right = min(x + delta_s + s, self.side_length_sudoku)
         y_up = max(y - delta_s, 0)
-        y_down = min(y + delta_s + s, self.side_sudoku)
-
-        img_cand = self.sudoku_gray[y_up:y_down, x_left:x_right]
-        img_cand = img_cand.astype('float32') / 255.0
-        img_cand = cv.resize(img_cand, dsize=(48, 48))
-        return img_cand
+        y_down = min(y + delta_s + s, self.side_length_sudoku)
+        return x_left, x_right, y_down, y_up
 
     def get_position_in_sudoku(self, x_center, y_center, dist_x, dist_y):
         # check if contour shape might be much larger than sudoku field, which can lead to mapping error
-        if 8 * dist_x < 7 * self.side_sudoku or 8 * dist_y < 7 * self.side_sudoku:
+        if 8 * dist_x < 7 * self.side_length_sudoku or 8 * dist_y < 7 * self.side_length_sudoku:
             warnings.warn('Possible wrong mapping of candidates to sudoku field.')
-        idx_x = int(9 * x_center / self.side_sudoku)
-        idx_y = int(9 * y_center / self.side_sudoku)
+        idx_x = int(9 * x_center / self.side_length_sudoku)
+        idx_y = int(9 * y_center / self.side_length_sudoku)
         assert idx_x < 9 and idx_y < 9, 'Computed index is too large; number does not fit into sudoku.'
         return idx_x, idx_y
 
@@ -287,12 +291,10 @@ class SudokuReader:
             candidate['number'] = candidate_nb
             idx_x, idx_y = self.get_position_in_sudoku(candidate['x_center'], candidate['y_center'], dist_x, dist_y)
             self.sudoku_field[idx_y, idx_x] = candidate_nb
-            # show steps
             if self.show_steps:
                 plt.imshow(img_cand)
                 plt.title('Predicted nb {}'.format(candidate_nb))
                 plt.show()
-            # show steps end
         return None
 
     def get_sudoku_field_from_image(self):

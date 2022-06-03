@@ -1,5 +1,7 @@
 import numpy as np
 
+MIN_NUM_ENTRIES = 19
+
 
 class SudokuSolver:
     def __init__(self):
@@ -7,7 +9,8 @@ class SudokuSolver:
         self.solutions = []
 
     def set_sudoku_field(self, field_input):
-        assert field_input.shape == (9, 9), 'Sudoku field has to be of shape (9, 9).'
+        if field_input.shape != (9, 9):
+            raise Exception('Sudoku field has to be of shape (9, 9).')
         self.field_sudoku = field_input
         if self.too_few_entries():
             print('Sudoku has too few entries to be solved efficiently.')
@@ -21,7 +24,8 @@ class SudokuSolver:
 
     @staticmethod
     def print_line(a):
-        assert a.size == 9, 'Array must have nine entries.'
+        if a.size != 9:
+            raise Exception('Array must have nine entries.')
         print('|', a[0], a[1], a[2], '|', a[3], a[4], a[5], '|', a[6], a[7], a[8], '|')
         return None
 
@@ -51,7 +55,7 @@ class SudokuSolver:
 
     def too_few_entries(self):
         nb_non_zero_entries = np.sum(self.field_sudoku > 0)
-        if nb_non_zero_entries <= 18:
+        if nb_non_zero_entries < MIN_NUM_ENTRIES:
             return True
         else:
             return False
