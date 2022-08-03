@@ -157,6 +157,10 @@ class SudokuReader:
 
     def find_contour_sudoku(self):
         self.get_input_image_edges()
+        if self.show_steps:
+            plt.imshow(self.input_edges)
+            plt.title('Edge image after Canny')
+            plt.show()
         contours, _ = cv.findContours(self.input_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         contours = sorted(contours, key=cv.contourArea, reverse=True)
         for candidate in contours:
@@ -178,6 +182,7 @@ class SudokuReader:
                     fig, axs = plt.subplots(nrows=1, ncols=2)
                     for i in range(0, 4):
                         cv.circle(output, (int(source_pts[i][0]), int(source_pts[i][1])), 3, (0, 255, 0))
+                    cv.drawContours(output, [poly_candidate], -1, (0, 255, 0), 2)
                     axs[0].imshow(output)
                     axs[0].set_title('Four points contour')
                     axs[1].imshow(self.sudoku_img)
