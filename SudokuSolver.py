@@ -12,14 +12,15 @@ class SudokuSolver:
         if field_input.shape != (9, 9):
             raise Exception('Sudoku field has to be of shape (9, 9).')
         self.field_sudoku = field_input
+        self.show_field()
         if self.too_few_entries():
             print('Sudoku has too few entries to be solved efficiently.')
             return False
         if self.is_field_possible():
+            print('Start to solve the sudoku...')
             return True
         else:
-            print('Got a sudoku field, which has no solution:')
-            self.show_field()
+            print('Got a sudoku field, which has no solution.')
             return False
 
     @staticmethod
@@ -27,7 +28,6 @@ class SudokuSolver:
         if a.size != 9:
             raise Exception('Array must have nine entries.')
         print('|', a[0], a[1], a[2], '|', a[3], a[4], a[5], '|', a[6], a[7], a[8], '|')
-        return None
 
     def show_field(self):
         print(25 * '-')
@@ -36,7 +36,6 @@ class SudokuSolver:
                 self.print_line(self.field_sudoku[box * 3 + row])
             print(25 * '-')
         print('\n')
-        return None
 
     def is_entry_allowed(self, x, y, number):
         for row in range(0, 9):
