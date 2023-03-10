@@ -26,7 +26,7 @@ my_model = tf.keras.models.load_model('model-OCR.h5')
 ### Usage
 To use the script, use the main.py script. To do so, set the parameter of the run configuration of the main.py script to use a `$FilePrompt$`:
 
-![](/home/maurus/originate_Projects/sudoku-solver/sudoku-solver/SetRunConfiguration.png)
+![](SetRunConfiguration.png)
 
 When you run `main.py`, you are asked to choose an image. If you want to run the script from the command line, one has to hand over the path to the image:
 
