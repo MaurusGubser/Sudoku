@@ -42,10 +42,14 @@ def define_neural_network(nb_filters, input_shape, kernel_size, pool_size, dense
 
 
 def get_number_from_path(path):
-    start = path.rfind('/')     # Linux
-    # start = path.rfind('\\')    # Windows
-    number = int(path[start + 1:])
-    return number
+    start = path.rfind('/')
+    if start >= 0:
+        number = int(path[start + 1:])
+        return number
+    else:
+        start = path.rfind('\\')
+        number = int(path[start + 1:])
+        return number
 
 
 def load_european_digits_data(path):
@@ -63,20 +67,22 @@ def load_european_digits_data(path):
     return np.array(x), np.array(y)
 
 
-def load_train_test_data(path_to_european_data=None):
+def load_train_test_data(nb_mnist_digits, use_european_digits, use_only_ones):
     (x_mnist_train, y_mnist_train), (x_mnist_test, y_mnist_test) = tf.keras.datasets.mnist.load_data()
-    if path_to_european_data:
-        x_european, y_european = load_european_digits_data(path_to_european_data)
-        # if only 1 should be taken from european digits
-        # y_ones = y_european[y_european == 1]
-        # x_ones = x_european[y_european == 1]
-        # x = np.append(x_mnist_train, x_ones, axis=0)
-        # y = np.append(y_mnist_train, y_ones, axis=0)
-        x = np.append(x_mnist_train[0:30000], x_european, axis=0)
-        y = np.append(y_mnist_train[0:30000], y_european, axis=0)
-    else:
-        x = np.append(x_mnist_train, x_mnist_test, axis=0)
-        y = np.append(y_mnist_train, y_mnist_test, axis=0)
+    x = np.append(x_mnist_train, x_mnist_test, axis=0)[0:nb_mnist_digits]
+    y = np.append(y_mnist_train, y_mnist_test, axis=0)[0:nb_mnist_digits]
+    if use_european_digits:
+        path_european_data = 'EuropeanData'
+        x_european, y_european = load_european_digits_data(path_european_data)
+        if use_only_ones:
+            y_ones = y_european[y_european == 1]
+            x_ones = x_european[y_european == 1]
+            x = np.append(x, x_ones, axis=0)
+            y = np.append(y, y_ones, axis=0)
+        else:
+            x = np.append(x, x_european, axis=0)
+            y = np.append(y, y_european, axis=0)
+
     x = x.astype("float32") / 255.0
     x = np.expand_dims(x, -1)
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
@@ -86,7 +92,10 @@ def load_train_test_data(path_to_european_data=None):
 
 
 # ----------------- data ---------------------
-x_train, y_train, x_test, y_test = load_train_test_data('EuropeanDigits')
+nb_mnist = 30000
+use_european_digits = True
+use_only_ones = False
+x_train, y_train, x_test, y_test = load_train_test_data(nb_mnist, use_european_digits, use_only_ones)
 
 # ----------------- model ---------------------
 train = True
