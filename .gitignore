@@ -14,3 +14,5 @@
 /NumberClassifier_pyimage_EuropeanDigits_kernel7to5.h5
 /NumberClassifier_v2/
 .idea/
+/NumberClassifier_MNIST.h5
+/NumberClassifier_MNIST.onnx
