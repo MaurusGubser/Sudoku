@@ -2,6 +2,8 @@ import os
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.models
+import tf2onnx
+import onnxruntime as ort
 from tensorflow.keras.layers import Dense, Conv2D, Flatten, MaxPool2D, Dropout
 from tensorflow.keras.activations import relu, softmax
 from tensorflow.keras import Sequential
@@ -92,14 +94,14 @@ def load_train_test_data(nb_mnist_digits, use_european_digits, use_only_ones):
 
 
 # ----------------- data ---------------------
-nb_mnist = 30000
-use_european_digits = True
+nb_mnist = 50000
+use_european_digits = False
 use_only_ones = False
 x_train, y_train, x_test, y_test = load_train_test_data(nb_mnist, use_european_digits, use_only_ones)
 
 # ----------------- model ---------------------
-train = True
-modelname = 'NumberClassifier_'
+train = False
+modelname = 'NumberClassifier_MNIST'
 if train:
     nb_filters = 16
     kernel_size = 5
@@ -112,16 +114,24 @@ if train:
                                      pool_size=pool_size,
                                      dense_layer_size=dense_layer_size)
     batch_size = 1000
-    nb_epochs = 20
+    nb_epochs = 10
     my_model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epochs)
     my_model.save(modelname + '.h5')
-
+    spec = (tf.TensorSpec((None, 28, 28, 1), tf.float32, name='input'),)
+    model_proto, _ = tf2onnx.convert.from_keras(my_model,
+                                                input_signature=spec,
+                                                opset=13,
+                                                output_path=modelname + '.onnx')
 else:
-    my_model = tensorflow.keras.models.load_model(modelname)
+    my_model = tensorflow.keras.models.load_model(modelname+'.h5')
+    # my_model = onnx.load(modelname + '.onnx')
 
 # ----------------- prediction ---------------------
 y_pred = my_model.predict(x_test)
 y_pred = np.array([np.argmax(i) for i in y_pred])
+
+ort_sess = ort.InferenceSession(modelname + '.onnx')
+y_pred = ort_sess.run(None, {'data': x_test})
 
 # ------------------- plot predictions ----------------------------
 offset = 250
